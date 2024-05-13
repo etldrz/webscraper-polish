@@ -1,0 +1,121 @@
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+import json
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+
+link = "https://iconnect007.com/article/135669/indium-corporations-dr-andy-mackie-to-present-as-part-of-inemi-packaging-series/135672/ein"
+
+agent = "Mozilla%2F5.0+(Windows+NT+10.0%3B+Win64%3B+x64)+AppleWebKit%2F537" + \
+    ".36+(KHTML%2C+like+Gecko)+Chrome%2F90.0.4430.85+Safari%2F537" + \
+    ".36+RuxitSynthetic%2F1.0+v7014856858959599523+t4743487995012709438" + \
+    "+ath1fb31b7a+altpriv+cvcv%3D2+smf%3D0"
+
+load_dotenv()
+client = OpenAI()
+
+client.api_key = os.getenv("OPENAI_API_KEY") 
+
+
+def get_webtext(link):
+    try:
+        with sync_playwright() as p:
+            brow = p.chromium.launch(slow_mo=50)
+            page = brow.new_page(user_agent=agent)
+            page.goto(link)
+            bs = BeautifulSoup(page.content(), "html.parser")
+            webtext = bs.get_text().replace('\n', '').replace('"', '').replace("\xa0", '').strip()
+        return webtext
+    except Exception as e:
+        print(e)
+        return ""
+    
+
+def build_prompt(full_name, institution):
+    
+    prompt = "When given the name '" + full_name + "' and the institution of" \
+       " '" + institution + "', I want you to find the following data for the individual." \
+        " 'Name', 'Institution', 'Job title', 'Gender', 'Research focus'," \
+        " 'Expertise', 'Research Fields', 'Patents under their name', 'Awards recieved'," \
+        " 'Email', 'Other relevant links'." \
+        " Infer their gender from the input." \
+        " Output should be in JSON format. If you cannot" \
+        " find information on a particular topic, enter 'NA' for that field. Relevant links" \
+        " should just be included as a string with spaces between the links, not a sub-JSON." \
+        " If you can find nothing, still output the JSON in the desired format, with name and" \
+        " institution and 'NA' as every other category."
+
+    return prompt
+
+    
+def gogo(researcher):
+    webtext = ""
+    for l in researcher['Links used']:
+        webtext += get_webtext(l)
+    
+    if webtext is None:
+        return None
+
+    full_name = researcher['Name']
+    institution = researcher['Institution']
+    prompt = build_prompt(full_name, institution)
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": webtext}
+            ]
+        )
+    except Exception as e:
+        print(e)
+        output = {
+            "Name": full_name,
+            "Institution": institution,
+            "Job title": "NA",
+            "Gender": "NA",
+            "Research focus": "NA",
+            "Expertise": "NA",
+            "Research fields": "NA",
+            "Patents under their name": "NA",
+            "Awards recieved": "NA",
+            "Email": "NA",
+            "Other relevant links": "NA"
+        }
+        return output
+
+    chat = response.choices[0].message.content
+
+   # The output may be in code format, ie flanked by ```json/```
+    try:
+        as_dict = json.loads(chat)
+        return as_dict
+    except:
+        print("triggered")
+
+   #except:
+   #     output = "{ " \
+   #         "\"Name\": \"" + full_name + "\", " \
+   #         "\"Institution\": \"" + institution + "\", " \
+   #         "\"Job title\": NA, " \
+   #         "\"Gender\": NA, " \
+   #         "\"Research focus\": NA, " \
+   #         "\"Expertise\": NA, " \
+   #         "\"Research fields\": NA, " \
+   #         "\"Patents under their name\": NA, " \
+   #         "\"Awards received\": NA, " \
+   #         "\"Email\": NA, " \
+   #         "\"Other relevant links\": NA}"
+   #     as_dict = json.loads(output)
+
+    fixed_chat = chat.split("\n")
+    del fixed_chat[0]
+    del fixed_chat[-1]
+    as_dict = json.loads("\n".join(fixed_chat))
+
+    return(as_dict)
+
+#print(gogo(link, "Andy Mackie", "Indium"))

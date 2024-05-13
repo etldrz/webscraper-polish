@@ -1,0 +1,5 @@
+test = {"a": "NONE",
+        "b": "hello, hello, NONE"}
+
+test2 = {"a": "dr greenthumb",
+         "b": "NONE"}

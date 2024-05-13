@@ -1,0 +1,169 @@
+from bs4 import BeautifulSoup
+import requests
+import csv
+import time
+import tiktoken
+import analysis
+import pandas as pd
+
+linkFilterPrefixes = ["/search", "q=", "/?", "/advanced_search"]
+
+linkFilterSearches = ["google", "facebook", "instagram", "linkedin", \
+                        "twitter", "ratemyprofessors", "coursicle", \
+                        "youtube", ".gov", "amazon", \
+                        ".doc", ".pdf"]
+
+agent = "Mozilla%2F5.0+(Windows+NT+10.0%3B+Win64%3B+x64)+AppleWebKit%2F537.36+(KHTML%2C+like+Gecko)+Chrome%2F90.0.4430.85+Safari%2F537.36+RuxitSynthetic%2F1.0+v7014856858959599523+t4743487995012709438+ath1fb31b7a+altpriv+cvcv%3D2+smf%3D0"
+
+# Researchers to research
+to_search = []
+
+def read_csv(file_path):
+    with open(file_path, 'r') as f:
+        reader = csv.reader(f)
+        # The file has a header
+        next(reader)
+
+        for researcher in reader:
+
+            # If the domain is not included
+            if len(researcher) == 2:
+                researcher.append("N/A")
+            
+            to_search.append({"Name": researcher[0],
+                              "Institution": researcher[1],
+                              "Domain": researcher[2]})
+    return
+    
+def get_links(researcher):
+    query = researcher['Name'] + " " + researcher['Institution']
+
+    links = []
+
+    search_url = f"https://www.google.com/search?q={query}"
+
+    req = requests.get(search_url, agent)
+    print(req)
+    bs = BeautifulSoup(req.content, 'html.parser')
+    # Select every single <a> element
+    raw_links = bs.select("a")
+    # Filter links that do not contain "google.com" or start with the prefixes defined.
+    filtered_links = [link['href'] for link in raw_links \
+                        if not any(link['href'].startswith(prefix) \
+                                    or link['href'].find('google.com') > 0 \
+                                    for prefix in linkFilterPrefixes)] 
+
+    # Filter links that don't contain searches
+    filtered_links = [link for link in filtered_links \
+                        if not any(link.find(search) > -1 \
+                                    for search in linkFilterSearches)]
+
+    # Only grab the relevent part of the link if it includes more in it
+    links += [link.split("/url?q=")[-1].split("&sa")[0] for link in filtered_links]
+
+    links =[link for link in links if "/search" not in link]
+
+    full_name = researcher['Name'].lower().split(" ")
+    first_name = full_name[0]
+    last_name = full_name[-1]
+    #links = list(filter(check, links, item))
+    links = [link for link in map(lambda x: x.lower(), links) \
+                if "ieee" in link \
+                or "researchgate" in link and (first_name in link and last_name in link) \
+                or (first_name in link and last_name in link)]
+    ## NEED SOME SORT OF CHECK FOR TOKENS ##
+
+    return links
+    
+def write_to_excel():
+    df = pd.DataFrame(to_search)
+    name = "completed.xlsx"
+    df.to_excel(name, index=False, engine='openpyxl')
+
+def bigmode(file_path):
+    # Just in case
+    to_search.clear()
+
+    read_csv(file_path)
+
+    for researcher in to_search:
+        researcher['Links used'] = get_links(researcher)
+        if len(researcher['Links used']) == 0:
+            continue
+        # sleep is called here to avoid being screwed by google
+        time.sleep(2)
+        print("======================")
+        print(researcher['Name'] + " " + researcher['Institution'])
+        print('')
+        print(researcher['Links used'])
+
+        researcher['output'] = analysis.gogo(researcher)
+        researcher['output']['Links used'] = researcher['Links used']
+        print('')
+        print(researcher['output'])
+
+    write_to_excel()
+    return
+
+bigmode("test.csv")
+#
+#to_search = [
+#    {"Name": "Pawel Gradzki", "Institution": "Booz Allen Hamilton"},
+#    {"Name": "Ray Ridley", "Institution": "Ridley Engineering"},
+#    {"Name": "Mohamed Jatlaoui", "Institution": "Murata"},
+#    {"Name": "Andy Mackie", "Institution": "Indium"},
+#    {"Name": "Adam Morgan", "Institution": "NoMIS Power"},
+#    {"Name": "Rajen Murugan", "Institution": "Texas Instruments"},
+#    {"Name": "Yangang Wang", "Institution": "Dynex Semiconductor"},
+#    {"Name": "David Sheridan", "Institution": "Alpha & Omega Semiconductor"},
+#    {"Name": "Dale Huber", "Institution": "Sandia National Laboratory"},
+#    {"Name": "Tom Monson", "Institution": "Sandia National Laboratory"},
+#    {"Name": "Ramanathan Thiagarajan", "Institution": "NREL"},
+#    {"Name": "Muhammed Afridi", "Institution": "NIST"},
+#    {"Name": "Brian Rowden", "Institution": "ORNL"},
+#    {"Name": "Robert Kaplar", "Institution": "Sandia National Laboratory"}
+#]
+#
+#for item in to_search:
+#    query = item['Name'] + " " + item['Institution']
+#    links = []
+#
+#    for page_num in range(1):
+#        start_index = 0
+#        search_url = f"https://www.google.com/search?q={query}"
+#
+#        full_name = item['Name'].lower().split(" ")
+#        first_name = full_name[0]
+#        last_name = full_name[-1]
+#
+#        req = requests.get(search_url, agent)
+#        print(req)
+#        bs = BeautifulSoup(req.content, 'html.parser')
+#        # Select every single <a> element
+#        raw_links = bs.select("a")
+#        # Filter links that do not contain "google.com" or start with the prefixes defined.
+#        filtered_links = [link['href'] for link in raw_links \
+#                            if not any(link['href'].startswith(prefix) \
+#                                        or link['href'].find('google.com') > 0 \
+#                                        for prefix in linkFilterPrefixes)] 
+#
+#        # Filter links that don't contain searches
+#        filtered_links = [link for link in filtered_links \
+#                            if not any(link.find(search) > -1 \
+#                                        for search in linkFilterSearches)]
+#
+#        # Only grab the relevent part of the link if it includes more in it
+#        links += [link.split("/url?q=")[-1].split("&sa")[0] for link in filtered_links]
+#
+#        #links = list(filter(check, links, item))
+#        links = [link for link in links \
+#                 if " ".join(full_name) in link \
+#                 or "ieee" in link \
+#                 or "researchgate" in link \
+#                 or (first_name in link and last_name in link)]
+#                 
+#           
+#        print(query)
+#        print(links)
+#        print("==================")
+#        time.sleep(3)
