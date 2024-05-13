@@ -10,7 +10,7 @@ import json
 agent = random.choice(user_agents)
 
 # this model is cheaper than gpt 4, still gives good output, and has json mode.
-client_model = "gpt-3.5-turbo-1106"
+CLIENT_MODEL = "gpt-3.5-turbo-1106"
 
 
 def animate_client():
@@ -85,8 +85,8 @@ def generate_response(client, prompt_list, webtext, researcher):
     for prompt in prompt_list:
         try:
             response = client.chat.completions.create(
-                model=client_model,
-                messages=[
+                model = CLIENT_MODEL,
+                messages = [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": webtext}
                 ]

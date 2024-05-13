@@ -18,12 +18,12 @@ bad_locations = ["facebook", "instagram",
                  "coursicle", "youtube", "amazon",
                 ".doc", ".pdf", "wiki", "imgres"]
 
-#agent = random.choice(user_agents)
+agent = random.choice(user_agents)
 
-agent = "Mozilla%2F5.0+(Windows+NT+10.0%3B+Win64%3B+x64)+AppleWebKit%2F537" + \
-    ".36+(KHTML%2C+like+Gecko)+Chrome%2F90.0.4430.85+Safari%2F537" + \
-    ".36+RuxitSynthetic%2F1.0+v7014856858959599523+t4743487995012709438" + \
-    "+ath1fb31b7a+altpriv+cvcv%3D2+smf%3D0"
+#agent = "Mozilla%2F5.0+(Windows+NT+10.0%3B+Win64%3B+x64)+AppleWebKit%2F537" + \
+#    ".36+(KHTML%2C+like+Gecko)+Chrome%2F90.0.4430.85+Safari%2F537" + \
+#    ".36+RuxitSynthetic%2F1.0+v7014856858959599523+t4743487995012709438" + \
+#    "+ath1fb31b7a+altpriv+cvcv%3D2+smf%3D0"
 
 to_search = []
 
@@ -239,14 +239,14 @@ def bigmode(input_path):
 
 def token_data(file_path):
     """
-    This is used for testing purposes/cost analysis. It will gather and ouput
-    the tokens needed per researcher 
+    This is used for testing purposes/cost analysis. It
+    will gather and ouput the tokens needed per researcher 
     """
     to_search.clear()
 
     read_csv(file_path)
 
-    encoding = tiktoken.encoding_for_model(analysis.client_model)
+    encoding = tiktoken.encoding_for_model(analysis.CLIENT_MODEL)
 
     all_tokens = []
     for r in to_search:
@@ -261,13 +261,15 @@ def token_data(file_path):
             r['Token input'] = 0
             all_tokens.append(0)
 
-        # using tiktoken, the token count of all of the webtext used per researcher
-        #   will be gathered (tiktoken is the official openai token counter (tokens are
-        #   how openai charges))
+        # using tiktoken, the token count of all of the
+        #   webtext used per researcher will be gathered
+        #   (tiktoken is the official openai token counter
+        #   (tokens are how openai charges))
         tokens = len(encoding.encode(webtext)) * 3
         # add the token count of the prompts to the token count of input
         tokens += len(encoding.encode(
-            "".join(analysis.build_prompts(r['Name'], r['Institution']))))
+            "".join(analysis.build_prompts(
+                r['Name'], r['Institution']))))
         r['Token input'] = tokens
         all_tokens.append(tokens)
 
@@ -279,10 +281,11 @@ def token_data(file_path):
         print("Tokens needed for input: " + str(r['Token input']))
         print("========================================")
 
-    print("The sample mean, with " + str(len(all_tokens)) + " individuals, is:")
+    print("The sample mean, with " + str(len(all_tokens)) +
+          " individuals, is:")
     print(sum(all_tokens) / len(all_tokens))
     return
 
 
-token_data("electronics_test.csv")
-#bigmode("electronics_test.csv")
+#token_data("test_input/embree.csv")
+bigmode("test_input/embree.csv")
