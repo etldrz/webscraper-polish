@@ -1,12 +1,14 @@
 # TODO:
 ## general
-- have gui flash when job complete
+- have gui give some indication when job complete (including when user doesn't have it on screen)
 - <em><strong>remember to go through your submitted instructions and try it through the eyes of someone who has nothing installed</strong></em>
+- <em><strong>`pip freeze > requirements.txt`</strong></em>
 ## prompt change
 - blacks out when tools is processing (or something similar)
 - links to html doc that explains what a good prompt is
 ## log
 - have GUI give option to save log as .txt
+- have log record every notable event that occurs (success/failures/choices that the tool makes)
 
 ===========================
 # Basics of getting the tool up and running

@@ -27,8 +27,6 @@ agent = random.choice(user_agents)
 
 to_search = []
 
-output_path = "name.xlsx"
-
 
 def build_output_file(file_path):
     """
@@ -81,9 +79,7 @@ def get_links(researcher):
     search_url_ieee = f"https://www.google.com/search?q={ieee_query}"
 
     req = requests.get(search_url, agent)
-    time.sleep(np.random.poisson(1.2, 1)[0])
     researchgate_req = requests.get(search_url_researchgate, agent)
-    time.sleep(np.random.poisson(1.2, 1)[0])
     ieee_req = requests.get(search_url_ieee, agent)
 
     print(req)
@@ -190,28 +186,30 @@ def write_to_excel(output_path, researcher):
     wb.save(output_path)
 
 
-def bigmode(input_path):
+def main(input_path, output_name):
     """
-    for some csv formatted correctly (ie has a header and is filled with researchers,
-    their institutions, and their domains) this will get good links, then
-    use analysis.py to gather the webtext and have gpt analyze it.
+    For some csv formatted correctly (ie has a header and is filled with
+    researchers, their institutions, and their domains) this will get
+    good links, then use analysis.py to gather the webtext and have gpt
+    analyze it.
 
     At the end, a single researcher dict will have the following
       Name: ...,
       Institution: ...,
       Domain: ...,
       Links used: all the good links found by get_links(),
-      output: the output created by analysis.gogo(), as a sub-dict. Note that the links
-        used are also within this sub-dict.
+      output: the output created by analysis.analyze(), as a sub-dict.
+        Note that the links used are also within this sub-dict.
 
-    After all this is compiled, the found output will be written to the excel file.
+    After all this is compiled, the found output will be written to the excel
+    file.
     """
 
     # Just in case
     to_search.clear()
 
     read_csv(input_path)
-    build_output_file(output_path)
+    build_output_file(output_name)
 
     client = analysis.animate_client()
 
@@ -228,19 +226,19 @@ def bigmode(input_path):
         print("There were " + str(len(researcher['Links used'])) + " links found.")
         print(researcher['Links used'])
 
-        researcher['output'] = analysis.gogo(researcher, client)
+        researcher['output'] = analysis.analyze(researcher, client)
         print('')
         print(researcher['output'])
         print('')
-        write_to_excel(output_path, researcher)
+        write_to_excel(output_name, researcher)
 
     return
 
 
 def token_data(file_path):
     """
-    This is used for testing purposes/cost analysis. It
-    will gather and ouput the tokens needed per researcher 
+    This is used for testing purposes/cost analysis. It will gather and ouput
+    the tokens needed per researcher 
     """
     to_search.clear()
 
@@ -251,8 +249,6 @@ def token_data(file_path):
     all_tokens = []
     for r in to_search:
         r['Links used'] = get_links(r)
-
-        time.sleep(1)
 
         webtext = ""
         for l in r['Links used']:
@@ -285,7 +281,3 @@ def token_data(file_path):
           " individuals, is:")
     print(sum(all_tokens) / len(all_tokens))
     return
-
-
-#token_data("test_input/embree.csv")
-bigmode("test_input/embree.csv")

@@ -25,8 +25,9 @@ def animate_client():
 
 def get_webtext(link):
     """
-    Gets the text of some webpage located at the given URL (the URL has to be good).
-    The returned text is sans html/css. If the text-getting fails, an empty string is returned.
+    Gets the text of some webpage located at the given URL (the URL has
+    to be good). The returned text is sans html/css. If the text-getting
+    fails, an empty string is returned.
     """
     try:
         with sync_playwright() as p:
@@ -92,14 +93,18 @@ def generate_response(client, prompt_list, webtext, researcher):
                 ]
             )
 
-            # openai will return a dictionary if the response fails on their end for some reason.
+            # openai will return a dictionary if the response fails on their
+            #   end for some reason.
             if isinstance(response, dict):
                 output = output | bad_output(str(response))
                 print(bad_output((str(response))))
-            # else, if the response is good, return the text gpt generated as a dictionary (additional checks are preformed
-            # by this function).
+            # else, if the response is good, return the text gpt generated
+            #   as a dictionary (additional checks are preformed
+            #   by this function).
             else:
-                output = output | conv_to_dict(response.choices[0].message.content, researcher)
+                as_dict = conv_to_dict(response.choices[0].message.content,
+                                       researcher)
+                output = output | as_dict
         except Exception as e:
             print(e)
             output = output | bad_output(e)
@@ -109,9 +114,10 @@ def generate_response(client, prompt_list, webtext, researcher):
 
 def bad_output(err):
     """
-    To be used when there is no good output for some researcher, either because of bad/no links,
-    or the gpt output fails for some reason. 
-    It returns a dict containing whatever error causes the transformation of GPT's output to fail.
+    To be used when there is no good output for some researcher, either
+    because of bad/no links, or the gpt output fails for some reason. 
+    It returns a dict containing whatever error causes the transformation of
+    GPT's output to fail.
     """
     output = {
         "error": err
@@ -121,8 +127,9 @@ def bad_output(err):
 
 def conv_to_dict(json_string, researcher):
     """
-    Converts a JSON string to a python dict. The JSON string in question is from gpt, so there are
-    two seperate try/catches to try and subvert bad/incorrect output.
+    Converts a JSON string to a python dict. The JSON string in question
+    is from gpt, so there are two seperate try/catches to try and subvert
+    bad/incorrect output.
     """
 
     try:
@@ -152,16 +159,17 @@ def conv_to_dict(json_string, researcher):
 
 def combine_dicts(to_combine):
     # Replaces any instance of "NONE" with a blank string, for easy combining
-    cleaned = [{key: "" if value == "NONE" else value for key, value in current.items()}
-                for current in to_combine]
+    cleaned = [{key: "" if value == "NONE" else value
+                for key, value in current.items()}
+               for current in to_combine]
 
     # Combines all the values of the same keys together
     total = {}
     for clean in cleaned:
         for key, value in clean.items():
             if key in total:
-                # To prevent double adding of basic values, like name or institution,
-                #  as well as to prevent blank lines being added
+                # To prevent double adding of basic values, like name or
+                #   institution, as well as to prevent blank lines being added
                 if total[key] == value or \
                    value == "":
                     continue
@@ -172,11 +180,12 @@ def combine_dicts(to_combine):
     return total
 
 
-def gogo(researcher, client):
+def analyze(researcher, client):
     """
-    When given a researcher dict and an instance of an openai client, this will return a fully
-    completed dict with all of the needed output. If there is no good output for some reason,
-    this will return a dict created by bad_output().
+    When given a researcher dict and an instance of an openai client, this
+    will return a fully completed dict with all of the needed output. If
+    there is no good output for some reason, this will return a dict created
+    by bad_output().
     """
 
     prompt_list = build_prompts(researcher['Name'], researcher['Institution'])
@@ -185,11 +194,6 @@ def gogo(researcher, client):
     for link in researcher['Links used']:
         webtext = get_webtext(link)
         all_output.append(generate_response(client, prompt_list, webtext, researcher))
-
-    ## The below operater merges two dicts
-    #output = output | conv_to_dict(
-    #    r.choices[0].message.content, researcher)
-    #print(r.choices[0].message.content)
 
     output = combine_dicts(all_output)
     return output
