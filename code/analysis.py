@@ -59,7 +59,7 @@ def build_prompts(full_name, institution):
 
     prompta = base_prompt + \
         " 'Email', 'Title', 'Gender', 'Research fields'." \
-        + " Infer their gender from input." \
+        " Infer their gender from input." \
         + end_prompt
 
     promptb = base_prompt + \

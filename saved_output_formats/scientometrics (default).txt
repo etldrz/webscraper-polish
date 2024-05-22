@@ -1,0 +1,8 @@
+#HEADERS
+Name,Last Name,Institution,Title,Domain,Gender,Topic,Research Focus,Expertise,Research Fields,Other Key Notes,Relevant Links,Email,Website
+#USEFUL_SEARCH_TERMS
+researchgate,ieee
+#PROMPTS
+'Email', 'Title', 'Gender', 'Research fields'. Infer their gender from input.
+'Research focus', 'Expertise'.
+'Patents under their name', 'Awards received'.`
