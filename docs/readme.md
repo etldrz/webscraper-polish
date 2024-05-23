@@ -5,7 +5,10 @@
 - <em><strong>`pip freeze > requirements.txt`</strong></em>
 ## prompt change
 - blacks out when tools is processing (or something similar)
-- links to html doc that explains what a good prompt is
+- links to pdf doc that explains what a good prompt is
+- in said doc have it mention
+  a. the blocked sites
+  b. the reserved column names ('Other Key Notes', 'Reserved Links', 'Email')
 ## log
 - have GUI give option to save log as .txt
 - have log record every notable event that occurs (success/failures/choices that the tool makes)

@@ -1,9 +1,10 @@
 import main
 import os
+import output_format
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QGridLayout, QLineEdit, QFileDialog, QWidget,
     QPushButton, QTabWidget, QMessageBox, QVBoxLayout, QLabel, QComboBox,
-    QPlainTextEdit
+    QPlainTextEdit, QScrollArea, QHBoxLayout
     )
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt
@@ -78,7 +79,7 @@ class TopChunk(QWidget):
 class TabChunk(QWidget):
 
     output_format_folder = "saved_output_formats"
-
+    base_drop_down_text = "Load saved format"
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -124,40 +125,108 @@ class TabChunk(QWidget):
 
 
     def init_alteration_tab(self):
-        alter_layout = QGridLayout()
+        self.alter_layout = QVBoxLayout()
+        self.scroll_area = QScrollArea()
 
-        drop_down = QComboBox()
-        default_message = "Choose saved format"
-        drop_down.addItems([default_message] + list(self.saved_output_format_names.keys()))
-        alter_layout.addWidget(drop_down, 0, 0,
-                               Qt.AlignmentFlag.AlignLeft)
+        # The three main sections of this tab
+        self.header_section = QVBoxLayout()
+        self.column_section = QVBoxLayout()
+        self.prompt_section = QVBoxLayout()
 
+        saved_format_section = QHBoxLayout()
+        self.drop_down = QComboBox()
+        self.drop_down.addItems([self.base_drop_down_text] + \
+                           list(self.saved_output_format_names.keys()))
+        self.drop_down.currentTextChanged.connect(self.load_format)
+        saved_format_section.addWidget(self.drop_down)
+        self.header_section.addLayout(saved_format_section)
 
         information = QLabel("This row is reserved for information, as well as" \
                              " access to the pdf (or whatever)")
-        alter_layout.addWidget(information, 1, 0)
-        
+        self.header_section.addWidget(information)
 
-        prompt_input = QPlainTextEdit()
-        prompt_input.setPlaceholderText("If no prompt is inputted, the" \
-                                        " default option will be used")
-        alter_layout.addWidget(prompt_input, 2, 0)
-        add_prompt = QPushButton("Add prompt")
-        add_prompt.clicked.connect(self.add_new_prompt_box)
-        alter_layout.addWidget(add_prompt, 2, 1)
-        
+        self.alter_layout.addLayout(self.header_section)
+        self.alter_layout.addLayout(self.column_section)
+        self.alter_layout.addLayout(self.prompt_section)
 
+        self.base_output_prompt()
+        
         widget = QWidget()
-        widget.setLayout(alter_layout)
+        widget.setLayout(self.alter_layout)
+        self.scroll_area.setWidget(widget)
         self.tabs.addTab(widget, "Alter output")
 
 
-    def add_new_prompt_box(self):
-        print("hello")
+    def base_output_prompt(self):
+        # The below chunk initializes the first column input text box, and
+        #  its corresponding button.
+       
+        # This variable used for formatting purposes, when the button to add
+        #  either prompts or columns is pressed this var is used to
+        #  determine where exactly those new input lines are added on the
+        #  grid.
+        column_input = QLineEdit()
+        column_input.setPlaceholderText("Enter column outputs")
+        self.column_section.addWidget(column_input)
+        self.add_column = QPushButton("Add output")
+        self.add_column.clicked.connect(self.add_new_column_box)
+        self.column_section.addWidget(self.add_column)
 
+        # The below chunk initializes the first prompt input box and its
+        #  corresponding button.
+        prompt_input = QPlainTextEdit()
+        prompt_input.setPlaceholderText("If no prompt is inputted, the" \
+                                        " default option will be used")
+        self.prompt_section.addWidget(prompt_input)
+        self.add_prompt = QPushButton("Add prompt")
+        self.add_prompt.clicked.connect(self.add_new_prompt_box)
+        self.prompt_section.addWidget(self.add_prompt)
+
+
+    def add_new_column_box(self):
+        column_input = QLineEdit()
+        column_input.setPlaceholderText("Enter column outputs")
+        self.column_section.addWidget(column_input)
+        self.column_section.addWidget(self.add_column)
+        return column_input
+
+
+    def add_new_prompt_box(self):
+        prompt_input = QPlainTextEdit()
+        prompt_input.setPlaceholderText("If no prompt is inputted, the" \
+                                        " default option will be used")
+        self.prompt_section.addWidget(prompt_input)
+        self.prompt_section.addWidget(self.add_prompt)
+        return prompt_input
+
+
+    def load_format(self):
+        self.clear_layout(self.column_section)
+        self.clear_layout(self.prompt_section)
+        self.base_output_prompt()
+
+        if self.drop_down.currentText() == self.base_drop_down_text:
+            return
+
+        path = self.saved_output_format_names[self.drop_down.currentText()]
+        saved = output_format.read_saved(path)
+
+        for h in saved["headers"]:
+            current = self.add_new_column_box()
+            current.setText(h)
+        for p in saved["prompts"]:
+            current = self.add_new_prompt_box()
+            current.setPlainText(p)
+        #for s in saved["search_terms"]:
+        #    current = self.add_new_search_box()
+        #    current.setText(s)
+
+
+    def clear_layout(self, layout):
+        for i in reversed(range(layout.count())):
+            layout.itemAt(i).widget().setParent(None)
 
     def update_output_format_names(self):
-
         viable_paths = [f for f in os.listdir(self.output_format_folder) \
                         if os.path.splitext(f)[-1].lower() == ".txt"]
 
@@ -200,7 +269,7 @@ class UserInterface(QMainWindow):
 
         container = QWidget()
         container.setLayout(self.layout)
-        container.setStyleSheet("background:rgb(212,211,217)")
+        container.setStyleSheet("background:rgb(150,50,30)")
         self.setCentralWidget(container)
         self.resize(800, 600)
 
