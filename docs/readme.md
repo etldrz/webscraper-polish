@@ -25,7 +25,7 @@
 
 Each run of the tool will create a log file, where bug information and additional data can be found.
 
-The tool requires that input data be formatted in the following manner (as a .csv). A header line is always required, and the tool requires that input be in the order 'Name, Institution, Domain'.
+The tool requires that input data be formatted in the following manner (as a .csv). A header line is always required, and the input MUST contain a column labeled `Name` and a column labeled `Institution`. Additional columns can be included, these additional columns will be included in the output but won't be used in the internal workings of the tool.
 
 | Name | Institution | Domain |
 | ---- | ----------- | ------ |
