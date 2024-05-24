@@ -43,47 +43,50 @@ def get_webtext(link):
         return ""
 
 
-def build_prompts(full_name, institution):
-    """
-    Builds three seperate prompts for GPT to analyze. Each prompt is flanked by
-    base_prompt/end_prompt.
-    """
+#def build_prompts(full_name, institution):
+#    """
+#    Builds three seperate prompts for GPT to analyze. Each prompt is flanked by
+#    base_prompt/end_prompt.
+#    """
+#
+#    base_prompt = "When given the name '" + full_name + "' and the institution of" \
+#        " '" + institution + "', I want you to find the following data for the individual."
+#
+#    end_prompt = " If you can find nothing, still output the JSON in the desired format," \
+#        " with 'NONE' in every category. Output should be in JSON format. If you cannot" \
+#        " find information on a particular topic, enter 'NONE' for that field." \
+#        " Do not include sub-JSONs or sub-lists."
+#
+#    prompta = base_prompt + \
+#        " 'Email', 'Title', 'Gender', 'Research fields'." \
+#        " Infer their gender from input." \
+#        + end_prompt
+#
+#    promptb = base_prompt + \
+#        " 'Research focus', 'Expertise'" \
+#        + end_prompt
+#
+#    promptc = base_prompt + \
+#        " 'Patents under their name', 'Awards received'" \
+#        + end_prompt
+#
+#    return [prompta, promptb, promptc]
 
-    base_prompt = "When given the name '" + full_name + "' and the institution of" \
-        " '" + institution + "', I want you to find the following data for the individual."
 
-    end_prompt = " If you can find nothing, still output the JSON in the desired format," \
-        " with 'NONE' in every category. Output should be in JSON format. If you cannot" \
-        " find information on a particular topic, enter 'NONE' for that field." \
-        " Do not include sub-JSONs or sub-lists."
-
-    prompta = base_prompt + \
-        " 'Email', 'Title', 'Gender', 'Research fields'." \
-        " Infer their gender from input." \
-        + end_prompt
-
-    promptb = base_prompt + \
-        " 'Research focus', 'Expertise'" \
-        + end_prompt
-
-    promptc = base_prompt + \
-        " 'Patents under their name', 'Awards received'" \
-        + end_prompt
-
-    return [prompta, promptb, promptc]
-
-
-def generate_response(client, prompt_list, webtext, researcher):
+def generate_response(client, prompt_list, webtext, person):
     """
     Gets a response item from an openai client based off of text from some website
     and a given prompt. If the response-getting fails, bad_output() is returned.
     """
 
-    output = {"Name": researcher['Name'],
-              "Institution": researcher['Institution'],
-              "Domain": researcher['Domain']}
+    #output = {"Name": researcher['Name'],
+    #          "Institution": researcher['Institution'],
+    #          "Domain": researcher['Domain']}
+    output = {h : person[h] for h in person['header']}
 
     for prompt in prompt_list:
+        prompt = prompt.replace("PERSON_NAME", person['name'])
+        prompt = prompt.replace("INSTITUTION_NAME", person['institution'])
         try:
             response = client.chat.completions.create(
                 model = CLIENT_MODEL,
@@ -103,7 +106,7 @@ def generate_response(client, prompt_list, webtext, researcher):
             #   by this function).
             else:
                 as_dict = conv_to_dict(response.choices[0].message.content,
-                                       researcher)
+                                       person)
                 output = output | as_dict
         except Exception as e:
             print(e)
@@ -180,7 +183,7 @@ def combine_dicts(to_combine):
     return total
 
 
-def analyze(researcher, client):
+def analyze(person, client, prompts):
     """
     When given a researcher dict and an instance of an openai client, this
     will return a fully completed dict with all of the needed output. If
@@ -188,12 +191,12 @@ def analyze(researcher, client):
     by bad_output().
     """
 
-    prompt_list = build_prompts(researcher['Name'], researcher['Institution'])
+    #prompt_list = build_prompts(person['name'], person['institution'])
 
     all_output = []
-    for link in researcher['Links used']:
+    for link in person['links used']:
         webtext = get_webtext(link)
-        all_output.append(generate_response(client, prompt_list, webtext, researcher))
+        all_output.append(generate_response(client, prompts, webtext, person))
 
     output = combine_dicts(all_output)
     return output

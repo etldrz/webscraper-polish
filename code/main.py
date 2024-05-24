@@ -1,14 +1,15 @@
-from bs4 import BeautifulSoup
-from user_agents import user_agents
-from openpyxl import Workbook, load_workbook
 import random
 import requests
 import csv
 import time
 import tiktoken
-import analysis
 import pandas as pd
 import numpy as np
+import output_format
+import analysis
+from bs4 import BeautifulSoup
+from user_agents import user_agents
+from openpyxl import Workbook, load_workbook
 
 bad_link_prefixes = ["/search", "q=", "/?",
                      "/advanced_search"]
@@ -25,18 +26,16 @@ agent = random.choice(user_agents)
 #    ".36+RuxitSynthetic%2F1.0+v7014856858959599523+t4743487995012709438" + \
 #    "+ath1fb31b7a+altpriv+cvcv%3D2+smf%3D0"
 
-to_search = []
 
-
-def build_output_file(file_path):
+def build_output_file(file_path, header):
     """
     This builds the sheet, adds the relevant column names,
     then openpyxl.load_workbook() will be called to append
     new researchers as they are scraped and processed.
     """
-    header = ["Name", "Last Name", "Institution", "Title", "Domain", "Gender",
-              "Topic", "Research Focus", "Expertise", "Research Fields",
-              "Other Key Notes", "Relevant Links", "Email", "Website"]
+    #header = ["Name", "Last Name", "Institution", "Title", "Domain", "Gender",
+    #          "Topic", "Research Focus", "Expertise", "Research Fields",
+    #          "Other Key Notes", "Relevant Links", "Email", "Website"]
     wb = Workbook()
     ws = wb.active
     ws.append(header)
@@ -47,28 +46,33 @@ def read_csv(file_path):
     """
     Reads some csv and loads each researcher as a dict into the list to_search.
     """
+    to_search = []
     with open(file_path, 'r') as f:
         reader = csv.reader(f)
-        # The file has a header
-        next(reader)
+        header = list(map(lambda x: x.lower(), next(reader)))
 
-        for researcher in reader:
+        for person in reader:
 
             # If the domain is not included
-            if len(researcher) == 2:
-                researcher.append("N/A")
+            #if len(researcher) == 2:
+            #    researcher.append("N/A")
 
-            to_search.append({"Name": researcher[0],
-                              "Institution": researcher[1],
-                              "Domain": researcher[2]})
-    return
+            person_data = {header[i] : person[i] \
+                              for i in range(0,len(header))}
+            person_data['header'] = header
+            to_search.append(person_data)
+
+            #to_search.append({"Name": researcher[0],
+            #                  "Institution": researcher[1],
+            #                  "Domain": researcher[2]})
+    return to_search
 
 
 def get_links(researcher):
     """
     Gets relevant links from the first page of a google search for some researcher.
     """
-    query = researcher['Name'] + " " + researcher['Institution']
+    query = researcher['name'] + " " + researcher['institution']
     researchgate_query = query + " resarchgate"
     ieee_query = query + " ieee"
 
@@ -108,10 +112,10 @@ def get_links(researcher):
 
     links = [link for link in links if "/search" not in link]
 
-    full_name = researcher['Name'].lower().split(" ")
+    full_name = researcher['name'].lower().split(" ")
     first_name = full_name[0]
     last_name = full_name[-1]
-    institution = researcher['Institution']
+    institution = researcher['institution']
     # links = list(filter(check, links, item))
     links = [link for link in map(lambda x: x.lower(), set(links))
              if "ieee" in link
@@ -143,7 +147,6 @@ def write_to_excel(output_path, researcher):
     ws = wb.active
     # getting the column names 
     header = ws[1]
-
         
     to_write = ["NONE"]*len(header)
 
@@ -153,7 +156,7 @@ def write_to_excel(output_path, researcher):
 
             col = h.column
             if h.internal_value.lower() == "relevant links":
-                to_write[col - 1] = "\n".join(researcher['Links used'])
+                to_write[col - 1] = "\n".join(researcher['links used'])
                 continue 
 
             data = researcher['output'][key]
@@ -186,7 +189,7 @@ def write_to_excel(output_path, researcher):
     wb.save(output_path)
 
 
-def main(input_path, output_name):
+def main(input_path, output_name, output_format_location):
     """
     For some csv formatted correctly (ie has a header and is filled with
     researchers, their institutions, and their domains) this will get
@@ -206,31 +209,33 @@ def main(input_path, output_name):
     """
 
     # Just in case
-    to_search.clear()
+    #to_search.clear()
 
-    read_csv(input_path)
-    build_output_file(output_name)
+    curr_format = output_format.read_saved(output_format_location)
+    to_search = read_csv(input_path)
+    build_output_file(output_name, curr_format["headers"])
 
     client = analysis.animate_client()
 
-    for researcher in to_search:
-        researcher['Links used'] = get_links(researcher)
+    for person in to_search:
+        person['links used'] = get_links(person)
 
         # If no good links are found, then
-        if len(researcher['Links used']) == 0:
-            researcher['output'] = analysis.bad_output("no links found :/")
+        if len(person['links used']) == 0:
+            person['output'] = analysis.bad_output("no links found :/")
 
-        print("======================")
-        print(researcher['Name'] + " " + researcher['Institution'] + " " + researcher['Domain'])
-        print('')
-        print("There were " + str(len(researcher['Links used'])) + " links found.")
-        print(researcher['Links used'])
+        #print("======================")
+        #print(researcher['Name'] + " " + researcher['Institution'] + " " + researcher['Domain'])
+        #print('')
+        #print("There were " + str(len(researcher['Links used'])) + " links found.")
+        #print(researcher['Links used'])
 
-        researcher['output'] = analysis.analyze(researcher, client)
+        person['output'] = analysis.analyze(person, client,
+                                            curr_format['prompts'])
         print('')
-        print(researcher['output'])
+        print(person['output'])
         print('')
-        write_to_excel(output_name, researcher)
+        write_to_excel(output_name, person)
 
     return
 

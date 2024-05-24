@@ -1,5 +1,5 @@
-import main
 import os
+import main
 import output_format
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QGridLayout, QLineEdit, QFileDialog, QWidget,
@@ -9,10 +9,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt
 
+COL_MAX = 4
+ROW_MAX = 4
+
 
 class TopChunk(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, tab_chunk):
         super().__init__(parent)
+        self.tab_chunk = tab_chunk
 
         self.init_top_chunk()
 
@@ -53,7 +57,7 @@ class TopChunk(QWidget):
         os.path.splitext(file_name)[-1].lower() != ".csv":
             message = "The input '" + path + "' is either nonexistant" \
                 " or not a .csv"
-            self.show_error_to_user(message)
+            show_error_to_user(message)
             return
 
         output_name = self.output_name.text() 
@@ -61,8 +65,14 @@ class TopChunk(QWidget):
             output_name = os.path.splitext(file_name)[0] + "_output"
         output_name += ".xlsx"
 
+        output_format_location = self.tab_chunk.drop_down.currentText()
+        if output_format_location == self.tab_chunk.base_drop_down_text:
+            output_format_location = self.tab_chunk.default_option
+        output_format_location = self.tab_chunk.output_format_folder + \
+            "/" + output_format_location + ".txt"
+
         self.process_button.setEnabled(False)
-        main.main(path, output_name)
+        main.main(path, output_name, output_format_location)
         dialog = QMessageBox(self)
         dialog.setWindowTitle("All done")
         dialog.setText("Scraping has been finished and is outputted to " +
@@ -75,6 +85,7 @@ class TabChunk(QWidget):
 
     output_format_folder = "saved_output_formats"
     base_drop_down_text = "Load saved format"
+    default_option = "scientometrics (default)"
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -216,6 +227,7 @@ class TabChunk(QWidget):
                                           : self.output_format_folder+"/"+name
                                           for name in viable_paths}
 
+
         
 class UserInterface(QMainWindow):
     def __init__(self):
@@ -230,7 +242,10 @@ class UserInterface(QMainWindow):
         #self.setWindowIcon(QIcon("data/vtarc_logo.png"))
         self.layout = QGridLayout()
 
-        top_chunk = TopChunk(self)
+        tab_chunk = TabChunk(self)
+        self.layout.addWidget(tab_chunk.tabs, 2, 2, 3, 3)
+
+        top_chunk = TopChunk(self, tab_chunk)
         self.layout.addWidget(top_chunk.input_filepath, 0, COL_MAX - 1,
                               Qt.AlignmentFlag.AlignRight)
 
@@ -243,10 +258,6 @@ class UserInterface(QMainWindow):
         self.layout.addWidget(top_chunk.process_button, 1, COL_MAX,
                               Qt.AlignmentFlag.AlignLeft)
 
-
-        tab_chunk = TabChunk(self)
-        self.layout.addWidget(tab_chunk.tabs, 2, 2, 3, 3)
-
         container = QWidget()
         container.setLayout(self.layout)
         container.setStyleSheet("background:rgb(150,50,30)")
@@ -254,10 +265,9 @@ class UserInterface(QMainWindow):
         self.resize(800, 600)
 
 
-    def show_error_to_user(self, message):
-        # possibly use QMessageBox
-        print(message)
-
+def show_error_to_user(message):
+    # possibly use QMessageBox
+    print(message)
 
 app = QApplication([])
 window = UserInterface()

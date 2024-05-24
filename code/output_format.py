@@ -2,8 +2,6 @@ HEADER = "#HEADERS"
 PROMPTS = "#PROMPTS"
 USEFUL_SEARCH_TERMS = "#USEFUL_SEARCH_TERMS"
 
-
-
     
 def build_prompt(name, institution, requested):
     start = "When given the name '" + name + "' and the institution of" \
@@ -43,7 +41,7 @@ def read_saved(saved_path):
 
     saved_format = {"headers":  headers_to_use,
                     "prompts": prompts_to_use,
-                    "search_terms": useful_search_terms}
+                    "search": useful_search_terms}
     return saved_format
 
             

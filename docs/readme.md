@@ -3,6 +3,8 @@
 - have gui give some indication when job complete (including when user doesn't have it on screen)
 - <em><strong>remember to go through your submitted instructions and try it through the eyes of someone who has nothing installed</strong></em>
 - <em><strong>`pip freeze > requirements.txt`</strong></em>
+- write code that re-generates the default text file if it's not in the folder.
+- enunciate that the input csv MUST include name and institution.
 ## prompt change
 - blacks out when tools is processing (or something similar)
 - links to pdf doc that explains what a good prompt is
