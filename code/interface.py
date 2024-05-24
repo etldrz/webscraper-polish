@@ -96,22 +96,9 @@ class TabChunk(QWidget):
         self.tabs.setMovable(False)
         self.tabs.setStyleSheet("background:white")
 
-        tab_titles = ["Table", "Log", "Alter output"]
-        
-        for t in tab_titles:
-            match t:
-                case "Table":
-                    self.init_table_tab()
-                case "Log":
-                    self.init_log_tab()
-                case "Alter output":
-                    self.init_alteration_tab()
-            #layout = QVBoxLayout()
-            #layout.addWidget(QLineEdit())
-            #layout.addWidget(QPushButton("SHIT."))
-            #widget = QWidget()
-            #widget.setLayout(layout)
-            #tabs.addTab(widget, str(i))
+        self.init_log_tab()
+        self.init_table_tab()
+        self.init_alteration_tab()
 
 
     def init_table_tab(self):
@@ -134,6 +121,7 @@ class TabChunk(QWidget):
         self.prompt_section = QVBoxLayout()
 
         saved_format_section = QHBoxLayout()
+        # To add: a way to save and name current setups
         self.drop_down = QComboBox()
         self.drop_down.addItems([self.base_drop_down_text] + \
                            list(self.saved_output_format_names.keys()))
@@ -153,18 +141,14 @@ class TabChunk(QWidget):
         
         widget = QWidget()
         widget.setLayout(self.alter_layout)
+        self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(widget)
-        self.tabs.addTab(widget, "Alter output")
+        self.tabs.addTab(self.scroll_area, "Alter output")
 
 
     def base_output_prompt(self):
         # The below chunk initializes the first column input text box, and
         #  its corresponding button.
-       
-        # This variable used for formatting purposes, when the button to add
-        #  either prompts or columns is pressed this var is used to
-        #  determine where exactly those new input lines are added on the
-        #  grid.
         column_input = QLineEdit()
         column_input.setPlaceholderText("Enter column outputs")
         self.column_section.addWidget(column_input)
@@ -203,9 +187,9 @@ class TabChunk(QWidget):
     def load_format(self):
         self.clear_layout(self.column_section)
         self.clear_layout(self.prompt_section)
-        self.base_output_prompt()
 
         if self.drop_down.currentText() == self.base_drop_down_text:
+            self.base_output_prompt()
             return
 
         path = self.saved_output_format_names[self.drop_down.currentText()]
@@ -225,6 +209,7 @@ class TabChunk(QWidget):
     def clear_layout(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().setParent(None)
+
 
     def update_output_format_names(self):
         viable_paths = [f for f in os.listdir(self.output_format_folder) \

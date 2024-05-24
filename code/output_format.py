@@ -3,6 +3,19 @@ PROMPTS = "#PROMPTS"
 USEFUL_SEARCH_TERMS = "#USEFUL_SEARCH_TERMS"
 
 
+
+    
+def build_prompt(name, institution, requested):
+    start = "When given the name '" + name + "' and the institution of" \
+        " '" + institution + "', I want you to find the following data for the" \
+        " individual. "
+
+    end = " Output should be in JSON format. If you cannot find" \
+        " information on a particular topic, enter 'NONE' for that field. Do not" \
+        " include sub-JSONs or sub-lists."
+    return start + requested + end
+
+
 def read_saved(saved_path):
     """
     This takes a saved format text file and retrieves the important
