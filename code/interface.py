@@ -10,11 +10,6 @@ from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt
 
 
-# The main GUI is laid out using QGridLayout, these are the max dimensions
-ROW_MAX = 4
-COL_MAX = 4
-
-
 class TopChunk(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
