@@ -3,15 +3,31 @@ PROMPTS = "#PROMPTS"
 USEFUL_SEARCH_TERMS = "#USEFUL_SEARCH_TERMS"
 
     
-def build_prompt(name, institution, requested):
-    start = "When given the name '" + name + "' and the institution of" \
-        " '" + institution + "', I want you to find the following data for the" \
-        " individual. "
+def build_prompts(columns):
+    col_count = len(columns)
+    optim_prompt_size = 3
+    
+    start = "When given the name 'PERSON_NAME' and the institution of" \
+        " 'INSTITUTION_NAME', I want you to find the following data for the" \
+        " individual: "
 
     end = " Output should be in JSON format. If you cannot find" \
         " information on a particular topic, enter 'NONE' for that field. Do not" \
         " include sub-JSONs or sub-lists."
-    return start + requested + end
+
+    prompts = []
+    if col_count < optim_prompt_size:
+        requested = "'" + "', '".join(columns) + "'."
+        prompts.append(start + requested + end)
+        return prompts
+    rem = col_count % optim_prompt_size
+    while len(columns) > 0:
+        rem -= 1
+        upper = 3 + (rem > 0)
+        requested = "'" + "', '".join(columns[0:upper]) + "'."
+        prompts.append(start + requested + end)
+        del columns[0:upper]
+    return prompts
 
 
 def read_saved(saved_path):

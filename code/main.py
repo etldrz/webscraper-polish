@@ -19,7 +19,6 @@ bad_locations = ["facebook", "instagram",
                  "coursicle", "youtube", "amazon",
                 ".doc", ".pdf", "wiki", "imgres"]
 
-agent = random.choice(user_agents)
 
 #agent = "Mozilla%2F5.0+(Windows+NT+10.0%3B+Win64%3B+x64)+AppleWebKit%2F537" + \
 #    ".36+(KHTML%2C+like+Gecko)+Chrome%2F90.0.4430.85+Safari%2F537" + \
@@ -38,7 +37,7 @@ def build_output_file(file_path, header):
     #          "Other Key Notes", "Relevant Links", "Email", "Website"]
     wb = Workbook()
     ws = wb.active
-    ws.append(header)
+    ws.append(list(map(lambda x: x.capitalize(), header)))
     wb.save(file_path)
 
 
@@ -49,7 +48,7 @@ def read_csv(file_path):
     to_search = []
     with open(file_path, 'r') as f:
         reader = csv.reader(f)
-        header = list(map(lambda x: x.lower(), next(reader)))
+        header = next(reader)
 
         for person in reader:
 
@@ -57,9 +56,10 @@ def read_csv(file_path):
             #if len(researcher) == 2:
             #    researcher.append("N/A")
 
-            person_data = {header[i] : person[i] \
+            person_data = {header[i].lower() : person[i] \
                               for i in range(0,len(header))}
-            person_data['header'] = header
+            person_data['header'] = list(map(lambda x: x.lower(), header))
+
             to_search.append(person_data)
 
             #to_search.append({"Name": researcher[0],
@@ -68,29 +68,24 @@ def read_csv(file_path):
     return to_search
 
 
-def get_links(researcher):
+def get_links(person, sites, agent):
     """
-    Gets relevant links from the first page of a google search for some researcher.
+    Gets relevant links from the first page of a google search for some person.
     """
-    query = researcher['name'] + " " + researcher['institution']
-    researchgate_query = query + " resarchgate"
-    ieee_query = query + " ieee"
+    query = person['name'] + " " + person['institution']
 
     links = []
 
     search_url = f"https://www.google.com/search?q={query}"
-    search_url_researchgate = f"https://www.google.com/search?q={researchgate_query}"
-    search_url_ieee = f"https://www.google.com/search?q={ieee_query}"
+    all_search = [search_url + " " + site for site in sites]
+    all_search = [search_url] + all_search
 
-    req = requests.get(search_url, agent)
-    researchgate_req = requests.get(search_url_researchgate, agent)
-    ieee_req = requests.get(search_url_ieee, agent)
+    content = []
+    for search in all_search:
+        req = requests.get(search, agent)
+        content.append(req.content)
 
-    print(req)
-    print(researchgate_req)
-    print(ieee_req)
-    print(type(req.content))
-    bs = BeautifulSoup(req.content + researchgate_req.content + ieee_req.content, 'html.parser')
+    bs = BeautifulSoup(b''.join(content), 'html.parser')
     # Select every single <a> element
     raw_links = bs.select("a")
     # Filter links that do not contain "google.com" or start with the prefixes defined.
@@ -112,10 +107,10 @@ def get_links(researcher):
 
     links = [link for link in links if "/search" not in link]
 
-    full_name = researcher['name'].lower().split(" ")
+    full_name = person['name'].lower().split(" ")
     first_name = full_name[0]
     last_name = full_name[-1]
-    institution = researcher['institution']
+    institution = person['institution']
     # links = list(filter(check, links, item))
     links = [link for link in map(lambda x: x.lower(), set(links))
              if "ieee" in link
@@ -128,12 +123,12 @@ def get_links(researcher):
     return links
 
 
-def write_to_excel(output_path, researcher):
+def write_to_excel(output_path, person):
     """
-    Writes each researcher to excel by using the package openpyxl.
+    Writes each person to excel by using the package openpyxl.
 
     How it works is it checks the pre-written Excel sheet for header names (see
-    build_output_file() and finds the corresponding key in the researcher dict
+    build_output_file() and finds the corresponding key in the person dict
     that is passed to this funciton. The value for that key is then put into
     a list of length equal to the number of needed columns at the index corresponding
     to the column with the same name. After all of the keys and columns are matched
@@ -151,15 +146,15 @@ def write_to_excel(output_path, researcher):
     to_write = ["NONE"]*len(header)
 
     #bugged out, bc to_search is a list (not the dreaded triple loop!)
-    for key in researcher['output']:
+    for key in person['output']:
         for h in header:
 
             col = h.column
             if h.internal_value.lower() == "relevant links":
-                to_write[col - 1] = "\n".join(researcher['links used'])
+                to_write[col - 1] = "\n".join(person['links used'])
                 continue 
 
-            data = researcher['output'][key]
+            data = person['output'][key]
             items = data.split("\n")
             count = 0
             while count < (len(items) - 1) and items[0] == "":
@@ -169,7 +164,7 @@ def write_to_excel(output_path, researcher):
 
             if h.internal_value.lower() == key.lower():
                 # minus one because col counts the row count of an excel file
-                data = researcher['output'][key]
+                data = person['output'][key]
 
                 #items = list(filter(lambda x: ratio))
 
@@ -207,17 +202,18 @@ def main(input_path, output_name, output_format):
     After all this is compiled, the found output will be written to the excel
     file.
     """
-
-    # Just in case
-    #to_search.clear()
-
     to_search = read_csv(input_path)
+    #log.add_log_text("Starting scraping on " + str(len(to_search)) + " individuals" \
+    #                 "<br>")
+
     build_output_file(output_name, output_format["header"])
 
     client = analysis.animate_client()
 
     for person in to_search:
-        person['links used'] = get_links(person)
+        #log.add_log_text("Scraping " + person['name'] + "<br>")
+        agent = random.choice(user_agents)
+        person['links used'] = get_links(person, output_format["sites"], agent)
 
         # If no good links are found, then
         if len(person['links used']) == 0:

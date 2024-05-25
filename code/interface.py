@@ -7,8 +7,20 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit, QScrollArea, QHBoxLayout
     )
 from PyQt6.QtGui import QPalette, QColor, QIcon
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 
+
+class Worker(QObject):
+    finished = pyqtSignal()
+    def __init__(self, input_path, output_name, output_format):
+        super().__init__()
+        self.input_path = input_path
+        self.output_name = output_name
+        self.output_format = output_format
+
+    def run(self):
+        main.main(self.input_path, self.output_name, self.output_format)
+        self.finished.emit()
 
 
 class TopChunk(QWidget):
@@ -63,19 +75,26 @@ class TopChunk(QWidget):
                 formatting["header"].append(curr.text())
 
         if len(formatting["header"]) == 0:
-            return output_format.read_saved("base")
+            chosen_format = self.tab_chunk.drop_down.currentText()
+            if chosen_format == self.tab_chunk.base_drop_down_text:
+                chosen_format = "base"
+            print(chosen_format)
+            return output_format.read_saved(chosen_format)
 
         for i in range(prompt_section.count()):
             curr = prompt_section.itemAt(i).widget()
             if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
                 formatting["prompts"].append(curr.toPlainText())
 
+        if len(formatting["prompts"]) == 0:
+            formatting["prompts"] = output_format.build_prompts(
+                formatting["header"])
+
         for i in range(site_section.count()):
             curr = site_section.itemAt(i).widget()
             if isinstance(curr, QLineEdit) and curr.text() != "":
                 formatting["sites"].append(curr.text())
 
-        print(formatting)
         return formatting
 
 
@@ -94,18 +113,23 @@ class TopChunk(QWidget):
             output_name = os.path.splitext(file_name)[0] + "_output"
         output_name += ".xlsx"
 
-
         output_format = self.load_format()
+        self.tab_chunk.log.setText("")
+
+        self.thread = QThread()
+        self.worker = Worker( path, output_name, output_format)
+        self.worker.moveToThread(self.thread)
+        
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
 
         self.process_button.setEnabled(False)
-        main.main(path, output_name, output_format)
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle("All done")
-        dialog.setText("Scraping has been finished and is outputted to " +
-                    output_name)
-        dialog.exec()
-        self.process_button.setEnabled(True)
-
+        self.thread.finished.connect(
+            lambda: self.process_button.setEnabled(True)
+        )
 
 
 class TabChunk(QWidget):
@@ -140,8 +164,12 @@ class TabChunk(QWidget):
 
 
     def init_log_tab(self):
-        label = QLabel("Please GOD, finish me")
-        self.tabs.addTab(label, "Log")
+        self.log = QLabel("Please GOD, finish me")
+        self.tabs.addTab(self.log, "Log")
+
+
+    def add_log_text(self, text):
+        self.log.setText(self.log.text() + text)
 
 
     def init_alteration_tab(self):
@@ -161,6 +189,11 @@ class TabChunk(QWidget):
                            list(self.saved_output_format_names.keys()))
         self.drop_down.currentTextChanged.connect(self.load_format)
         saved_format_section.addWidget(self.drop_down)
+        build_prompts = QPushButton("Generate prompts")
+        build_prompts.clicked.connect(self.add_prompts)
+        saved_format_section.addWidget(QLabel())
+        saved_format_section.addWidget(QLabel())
+        saved_format_section.addWidget(build_prompts)
         self.header_section.addLayout(saved_format_section)
 
         information = QLabel("This row is reserved for information, as well as" \
@@ -228,6 +261,7 @@ class TabChunk(QWidget):
     def load_format(self):
         self.clear_layout(self.column_section)
         self.clear_layout(self.prompt_section)
+        self.clear_layout(self.site_section)
 
         if self.drop_down.currentText() == self.base_drop_down_text:
             self.base_alter_view()
@@ -236,16 +270,33 @@ class TabChunk(QWidget):
         path = self.saved_output_format_names[self.drop_down.currentText()]
         saved = output_format.read_saved(path)
 
-        for h in saved["headers"]:
+        for h in saved["header"]:
             current = self.add_new_column_box()
             current.setText(h)
         for p in saved["prompts"]:
             current = self.add_new_prompt_box()
             current.setPlainText(p)
-        #for s in saved["search_terms"]:
-        #    current = self.add_new_search_box()
-        #    current.setText(s)
+        for s in saved["sites"]:
+            current = self.add_new_site_box()
+            current.setText(s)
 
+
+    def add_prompts(self):
+        columns = []
+        for i in range(self.column_section.count()):
+            curr = self.column_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                columns.append(curr.text())           
+
+        if len(columns) == 0:
+            return
+
+        prompts = output_format.build_prompts(columns)
+        self.clear_layout(self.prompt_section)
+        for p in prompts:
+            current = self.add_new_prompt_box()
+            current.setPlainText(p)
+        
 
     def clear_layout(self, layout):
         for i in reversed(range(layout.count())):
@@ -261,7 +312,6 @@ class TabChunk(QWidget):
         self.saved_output_format_names = {os.path.splitext(name)[0] \
                                           : self.output_format_folder+"/"+name
                                           for name in viable_paths}
-
 
         
 class UserInterface(QMainWindow):
