@@ -189,7 +189,7 @@ def write_to_excel(output_path, researcher):
     wb.save(output_path)
 
 
-def main(input_path, output_name, output_format_location):
+def main(input_path, output_name, output_format):
     """
     For some csv formatted correctly (ie has a header and is filled with
     researchers, their institutions, and their domains) this will get
@@ -211,9 +211,8 @@ def main(input_path, output_name, output_format_location):
     # Just in case
     #to_search.clear()
 
-    curr_format = output_format.read_saved(output_format_location)
     to_search = read_csv(input_path)
-    build_output_file(output_name, curr_format["headers"])
+    build_output_file(output_name, output_format["header"])
 
     client = analysis.animate_client()
 
@@ -231,7 +230,7 @@ def main(input_path, output_name, output_format_location):
         #print(researcher['Links used'])
 
         person['output'] = analysis.analyze(person, client,
-                                            curr_format['prompts'])
+                                            output_format['prompts'])
         print('')
         print(person['output'])
         print('')

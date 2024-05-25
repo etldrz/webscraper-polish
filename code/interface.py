@@ -9,8 +9,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt
 
-COL_MAX = 4
-ROW_MAX = 4
 
 
 class TopChunk(QWidget):
@@ -50,6 +48,37 @@ class TopChunk(QWidget):
         self.input_filepath.insert(str(response[0]))
 
 
+    def load_format(self):
+        column_section = self.tab_chunk.column_section
+        prompt_section = self.tab_chunk.prompt_section
+        site_section = self.tab_chunk.site_section
+
+        formatting = {"header": [],
+                     "prompts": [],
+                     "sites": []}
+
+        for i in range(column_section.count()):
+            curr = column_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting["header"].append(curr.text())
+
+        if len(formatting["header"]) == 0:
+            return output_format.read_saved("base")
+
+        for i in range(prompt_section.count()):
+            curr = prompt_section.itemAt(i).widget()
+            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
+                formatting["prompts"].append(curr.toPlainText())
+
+        for i in range(site_section.count()):
+            curr = site_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting["sites"].append(curr.text())
+
+        print(formatting)
+        return formatting
+
+
     def process(self):
         path = self.input_filepath.text()
         file_name = os.path.basename(path)
@@ -65,20 +94,18 @@ class TopChunk(QWidget):
             output_name = os.path.splitext(file_name)[0] + "_output"
         output_name += ".xlsx"
 
-        output_format_location = self.tab_chunk.drop_down.currentText()
-        if output_format_location == self.tab_chunk.base_drop_down_text:
-            output_format_location = self.tab_chunk.default_option
-        output_format_location = self.tab_chunk.output_format_folder + \
-            "/" + output_format_location + ".txt"
+
+        output_format = self.load_format()
 
         self.process_button.setEnabled(False)
-        main.main(path, output_name, output_format_location)
+        main.main(path, output_name, output_format)
         dialog = QMessageBox(self)
         dialog.setWindowTitle("All done")
         dialog.setText("Scraping has been finished and is outputted to " +
                     output_name)
         dialog.exec()
         self.process_button.setEnabled(True)
+
 
 
 class TabChunk(QWidget):
@@ -121,10 +148,11 @@ class TabChunk(QWidget):
         self.alter_layout = QVBoxLayout()
         self.scroll_area = QScrollArea()
 
-        # The three main sections of this tab
+        # The four main sections of this tab
         self.header_section = QVBoxLayout()
         self.column_section = QVBoxLayout()
         self.prompt_section = QVBoxLayout()
+        self.site_section = QVBoxLayout()
 
         saved_format_section = QHBoxLayout()
         # To add: a way to save and name current setups
@@ -142,8 +170,9 @@ class TabChunk(QWidget):
         self.alter_layout.addLayout(self.header_section)
         self.alter_layout.addLayout(self.column_section)
         self.alter_layout.addLayout(self.prompt_section)
+        self.alter_layout.addLayout(self.site_section)
 
-        self.base_output_prompt()
+        self.base_alter_view()
         
         widget = QWidget()
         widget.setLayout(self.alter_layout)
@@ -152,25 +181,23 @@ class TabChunk(QWidget):
         self.tabs.addTab(self.scroll_area, "Alter output")
 
 
-    def base_output_prompt(self):
+    def base_alter_view(self):
         # The below chunk initializes the first column input text box, and
         #  its corresponding button.
-        column_input = QLineEdit()
-        column_input.setPlaceholderText("Enter column outputs")
-        self.column_section.addWidget(column_input)
         self.add_column = QPushButton("Add output")
         self.add_column.clicked.connect(self.add_new_column_box)
-        self.column_section.addWidget(self.add_column)
+        self.add_new_column_box()
 
         # The below chunk initializes the first prompt input box and its
         #  corresponding button.
-        prompt_input = QPlainTextEdit()
-        prompt_input.setPlaceholderText("If no prompt is inputted, the" \
-                                        " default option will be used")
-        self.prompt_section.addWidget(prompt_input)
         self.add_prompt = QPushButton("Add prompt")
         self.add_prompt.clicked.connect(self.add_new_prompt_box)
-        self.prompt_section.addWidget(self.add_prompt)
+        self.add_new_prompt_box()
+
+        # This chunk accomplishes the same as above, except for useful sites
+        self.add_site = QPushButton("Add site")
+        self.add_site.clicked.connect(self.add_new_site_box)
+        self.add_new_site_box()
 
 
     def add_new_column_box(self):
@@ -190,12 +217,20 @@ class TabChunk(QWidget):
         return prompt_input
 
 
+    def add_new_site_box(self):
+        site_input = QLineEdit()
+        site_input.setPlaceholderText("Enter useful sites to scrape")
+        self.site_section.addWidget(site_input)
+        self.site_section.addWidget(self.add_site)
+        return site_input
+
+
     def load_format(self):
         self.clear_layout(self.column_section)
         self.clear_layout(self.prompt_section)
 
         if self.drop_down.currentText() == self.base_drop_down_text:
-            self.base_output_prompt()
+            self.base_alter_view()
             return
 
         path = self.saved_output_format_names[self.drop_down.currentText()]
@@ -230,6 +265,9 @@ class TabChunk(QWidget):
 
         
 class UserInterface(QMainWindow):
+
+    COL_MAX = 4
+
     def __init__(self):
         super().__init__()
 
@@ -246,16 +284,16 @@ class UserInterface(QMainWindow):
         self.layout.addWidget(tab_chunk.tabs, 2, 2, 3, 3)
 
         top_chunk = TopChunk(self, tab_chunk)
-        self.layout.addWidget(top_chunk.input_filepath, 0, COL_MAX - 1,
+        self.layout.addWidget(top_chunk.input_filepath, 0, self.COL_MAX - 1,
                               Qt.AlignmentFlag.AlignRight)
 
-        self.layout.addWidget(top_chunk.input_filepath_button, 0, COL_MAX,
+        self.layout.addWidget(top_chunk.input_filepath_button, 0, self.COL_MAX,
                               Qt.AlignmentFlag.AlignLeft)
         
-        self.layout.addWidget(top_chunk.output_name, 1, COL_MAX - 1,
+        self.layout.addWidget(top_chunk.output_name, 1, self.COL_MAX - 1,
                               Qt.AlignmentFlag.AlignRight)
 
-        self.layout.addWidget(top_chunk.process_button, 1, COL_MAX,
+        self.layout.addWidget(top_chunk.process_button, 1, self.COL_MAX,
                               Qt.AlignmentFlag.AlignLeft)
 
         container = QWidget()

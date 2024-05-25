@@ -20,6 +20,9 @@ def read_saved(saved_path):
     information. See below for an example of how these text files are
     set up.
     """
+
+    if saved_path == "base":
+        saved_path = "saved_output_formats/scientometrics (default).txt"
     headers_to_use = []
     prompts_to_use = []
     useful_search_terms = []
@@ -39,9 +42,9 @@ def read_saved(saved_path):
                 prompts_to_use = [prompt.split("\n")[0] for prompt in lines]
             line = f.readline()
 
-    saved_format = {"headers":  headers_to_use,
+    saved_format = {"header":  headers_to_use,
                     "prompts": prompts_to_use,
-                    "search": useful_search_terms}
+                    "sites": useful_search_terms}
     return saved_format
 
             
