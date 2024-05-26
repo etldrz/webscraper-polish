@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 
 class Worker(QObject):
     finished = pyqtSignal()
+    to_log = pyqtSignal(str)
     def __init__(self, input_path, output_name, output_format):
         super().__init__()
         self.input_path = input_path
@@ -19,7 +20,8 @@ class Worker(QObject):
         self.output_format = output_format
 
     def run(self):
-        main.main(self.input_path, self.output_name, self.output_format)
+        main.main(self.input_path, self.output_name, self.output_format,
+                  self.to_log)
         self.finished.emit()
 
 
@@ -117,19 +119,27 @@ class TopChunk(QWidget):
         self.tab_chunk.log.setText("")
 
         self.thread = QThread()
-        self.worker = Worker( path, output_name, output_format)
+        self.worker = Worker(path, output_name, output_format)
         self.worker.moveToThread(self.thread)
         
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.to_log.connect(self.tab_chunk.add_log_text)
         self.thread.start()
 
         self.process_button.setEnabled(False)
         self.thread.finished.connect(
             lambda: self.process_button.setEnabled(True)
         )
+
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("All done")
+        dialog.setText("Scraping has been finished and is outputted to " +
+                       output_name)
+        self.thread.finished.connect(dialog.exec)
+
 
 
 class TabChunk(QWidget):
@@ -153,8 +163,8 @@ class TabChunk(QWidget):
         self.tabs.setMovable(False)
         self.tabs.setStyleSheet("background:white")
 
-        self.init_log_tab()
         self.init_table_tab()
+        self.init_log_tab()
         self.init_alteration_tab()
 
 
@@ -165,7 +175,11 @@ class TabChunk(QWidget):
 
     def init_log_tab(self):
         self.log = QLabel("Please GOD, finish me")
-        self.tabs.addTab(self.log, "Log")
+        self.log.setWordWrap(True)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.log)
+        self.tabs.addTab(scroll_area, "Log")
 
 
     def add_log_text(self, text):

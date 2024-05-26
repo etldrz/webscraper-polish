@@ -184,7 +184,7 @@ def write_to_excel(output_path, person):
     wb.save(output_path)
 
 
-def main(input_path, output_name, output_format):
+def main(input_path, output_name, output_format, log):
     """
     For some csv formatted correctly (ie has a header and is filled with
     researchers, their institutions, and their domains) this will get
@@ -203,8 +203,15 @@ def main(input_path, output_name, output_format):
     file.
     """
     to_search = read_csv(input_path)
-    #log.add_log_text("Starting scraping on " + str(len(to_search)) + " individuals" \
-    #                 "<br>")
+    log.emit("Starting scraping on " + str(len(to_search)) + " individuals." \
+             "<br><br>OUTPUT HEADER:<br>" + \
+             ", ".join(output_format["header"]) + "<br>")
+    for i in range(len(output_format["prompts"])):
+        log.emit("<br>PROMPT " + str(i + 1) + "<br>")
+        log.emit(output_format["prompts"][i] + "<br>")
+    if len(output_format['sites']) >= 0:
+        log.emit("<br>ADDITIONAL SEARCH TERMS:<br>" + \
+                 ", ".join(output_format['sites']) + "<br>")
 
     build_output_file(output_name, output_format["header"])
 
