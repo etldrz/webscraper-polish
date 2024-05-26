@@ -1,4 +1,4 @@
-#HEADERS
+#HEADER
 Name,Last Name,Institution,Title,Domain,Gender,Topic,Research Focus,Expertise,Research Fields,Other Key Notes,Relevant Links,Email,Website
 #USEFUL_SEARCH_TERMS
 researchgate,ieee

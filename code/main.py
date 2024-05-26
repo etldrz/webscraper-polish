@@ -68,7 +68,7 @@ def read_csv(file_path):
     return to_search
 
 
-def get_links(person, sites, agent):
+def get_links(person, sites, agent, log):
     """
     Gets relevant links from the first page of a google search for some person.
     """
@@ -80,6 +80,9 @@ def get_links(person, sites, agent):
     all_search = [search_url + " " + site for site in sites]
     all_search = [search_url] + all_search
 
+    log.emit("<b>Initial search links used:</b><br>")
+    to_log = [f"<a href=\"{site}\">{site}</a>" for site in all_search]
+    log.emit("<br>".join(to_log) + "<br><br>")
     content = []
     for search in all_search:
         req = requests.get(search, agent)
@@ -120,10 +123,11 @@ def get_links(person, sites, agent):
 
     ## NEED SOME SORT OF CHECK FOR TOKENS ##
 
+
     return links
 
 
-def write_to_excel(output_path, person):
+def write_to_excel(output_path, person, log):
     """
     Writes each person to excel by using the package openpyxl.
 
@@ -175,13 +179,9 @@ def write_to_excel(output_path, person):
                 to_write[col - 1] = ""
                 
     
-    #for r in to_search:
-    #    to_write.append(r['output'])
-    #df = pd.dataframe(to_write)
-    #name = "completed.xlsx"
-    #df.to_excel(name, engine='openpyxl')
     ws.append(to_write)
     wb.save(output_path)
+    log.emit("<br><br><b>Saved to excel output.</b>")
 
 
 def main(input_path, output_name, output_format, log):
@@ -202,15 +202,16 @@ def main(input_path, output_name, output_format, log):
     After all this is compiled, the found output will be written to the excel
     file.
     """
+
     to_search = read_csv(input_path)
-    log.emit("Starting scraping on " + str(len(to_search)) + " individuals." \
-             "<br><br>OUTPUT HEADER:<br>" + \
+    log.emit("<h2>Starting scraping on " + str(len(to_search)) + \
+             " individuals.</h2><br><br><b>OUTPUT HEADER:</b><br>" + \
              ", ".join(output_format["header"]) + "<br>")
     for i in range(len(output_format["prompts"])):
-        log.emit("<br>PROMPT " + str(i + 1) + "<br>")
+        log.emit("<br><b>PROMPT " + str(i + 1) + "</b><br>")
         log.emit(output_format["prompts"][i] + "<br>")
     if len(output_format['sites']) >= 0:
-        log.emit("<br>ADDITIONAL SEARCH TERMS:<br>" + \
+        log.emit("<br><b>ADDITIONAL SEARCH TERMS:</b><br>" + \
                  ", ".join(output_format['sites']) + "<br>")
 
     build_output_file(output_name, output_format["header"])
@@ -218,26 +219,27 @@ def main(input_path, output_name, output_format, log):
     client = analysis.animate_client()
 
     for person in to_search:
-        #log.add_log_text("Scraping " + person['name'] + "<br>")
+        log.emit("<br><h3>Scraping " + person['name'] + ", " + \
+                 person["institution"] + "</h3><br><br>")
         agent = random.choice(user_agents)
-        person['links used'] = get_links(person, output_format["sites"], agent)
+        person["links used"] = get_links(person, output_format["sites"], agent,
+                                         log)
+        print(person["links used"])
+        print(type(person["links used"]))
 
+        log.emit("<b>Sites found:</b>")
         # If no good links are found, then
         if len(person['links used']) == 0:
+            log.emit("N/A<br>")
             person['output'] = analysis.bad_output("no links found :/")
+        else:
+            log.emit(str(len(person["links used"]) + "<br>"))
+            log.emit("<br>".join([f"<a href=\"{site}\">{site}</a>" \
+                                  for site in person["links used"]]))
 
-        #print("======================")
-        #print(researcher['Name'] + " " + researcher['Institution'] + " " + researcher['Domain'])
-        #print('')
-        #print("There were " + str(len(researcher['Links used'])) + " links found.")
-        #print(researcher['Links used'])
-
-        person['output'] = analysis.analyze(person, client,
-                                            output_format['prompts'])
-        print('')
-        print(person['output'])
-        print('')
-        write_to_excel(output_name, person)
+        person["output"] = analysis.analyze(person, client,
+                                            output_format["prompts"])
+        write_to_excel(output_name, person, log)
 
     return
 

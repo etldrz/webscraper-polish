@@ -1,7 +1,10 @@
-HEADER = "#HEADERS"
+HEADER = "#HEADER"
 PROMPTS = "#PROMPTS"
 USEFUL_SEARCH_TERMS = "#USEFUL_SEARCH_TERMS"
 
+SAVED_FOLDER = "saved_output_formats"
+DEFAULT_NAME = "scientometrics (default).txt"
+DEFAULT_PATH = SAVED_FOLDER + "/" + DEFAULT_NAME
     
 def build_prompts(columns):
     col_count = len(columns)
@@ -38,7 +41,7 @@ def read_saved(saved_path):
     """
 
     if saved_path == "base":
-        saved_path = "saved_output_formats/scientometrics (default).txt"
+        saved_path = DEFAULT_PATH
     headers_to_use = []
     prompts_to_use = []
     useful_search_terms = []
@@ -63,14 +66,24 @@ def read_saved(saved_path):
                     "sites": useful_search_terms}
     return saved_format
 
-            
-#saved = read_saved("saved_output_formats/scientometrics.txt")
-#print("HEADERS")
-#print(saved["headers"])
-#print("PROMPTS")
-#print(saved["prompts"])
-#print("EXTRA SEARCH TERMS")
-#print(saved["search_terms"])
+
+def save_format(to_save):
+    """
+    Where to_save is a dict containing
+    'header': output headers
+    'sites': additional sites, if any
+    'prompts': prompts to use
+    'name': the name of the saved format
+    """
+    to_write = SAVED_FOLDER + "/" + to_save["name"] + ".txt"
+
+    with open(to_write, 'w') as f:
+        f.write(HEADER + "\n")
+        f.write(",".join(to_save["header"]) + "\n")
+        f.write(USEFUL_SEARCH_TERMS + "\n")
+        f.write(",".join(to_save["sites"]) + "\n")
+        f.write(PROMPTS + "\n")
+        f.write("\n".join(to_save["prompts"]))
 
 
 # EXAMPLE_SAVED_FORMAT.txt

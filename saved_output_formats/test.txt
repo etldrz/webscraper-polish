@@ -1,7 +1,0 @@
-#HEADERS
-ColA,ColB,ColC,ColD
-#USEFUL_SEARCH_TERMS
-researchgate,ieee
-#PROMPTS
-Given A, give me C
-Given B, give me A

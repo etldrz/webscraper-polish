@@ -4,7 +4,7 @@ import output_format
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QGridLayout, QLineEdit, QFileDialog, QWidget,
     QPushButton, QTabWidget, QMessageBox, QVBoxLayout, QLabel, QComboBox,
-    QPlainTextEdit, QScrollArea, QHBoxLayout
+    QPlainTextEdit, QScrollArea, QHBoxLayout, QInputDialog
     )
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
@@ -144,15 +144,12 @@ class TopChunk(QWidget):
 
 class TabChunk(QWidget):
 
-    output_format_folder = "saved_output_formats"
     base_drop_down_text = "Load saved format"
-    default_option = "scientometrics (default)"
 
     def __init__(self, parent):
         super().__init__(parent)
 
         self.saved_output_format_names = {}
-        self.update_output_format_names()
         
         self.init_tabs()
         
@@ -176,6 +173,7 @@ class TabChunk(QWidget):
     def init_log_tab(self):
         self.log = QLabel("Please GOD, finish me")
         self.log.setWordWrap(True)
+        self.log.setOpenExternalLinks(True)
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.log)
@@ -199,13 +197,15 @@ class TabChunk(QWidget):
         saved_format_section = QHBoxLayout()
         # To add: a way to save and name current setups
         self.drop_down = QComboBox()
-        self.drop_down.addItems([self.base_drop_down_text] + \
-                           list(self.saved_output_format_names.keys()))
+        self.update_output_format_names()
         self.drop_down.currentTextChanged.connect(self.load_format)
         saved_format_section.addWidget(self.drop_down)
         build_prompts = QPushButton("Generate prompts")
-        build_prompts.clicked.connect(self.add_prompts)
+        build_prompts.clicked.connect(self.generate_prompts)
+        save_format = QPushButton("Save formatting")
+        save_format.clicked.connect(self.save_format)
         saved_format_section.addWidget(QLabel())
+        saved_format_section.addWidget(save_format)
         saved_format_section.addWidget(QLabel())
         saved_format_section.addWidget(build_prompts)
         self.header_section.addLayout(saved_format_section)
@@ -281,6 +281,9 @@ class TabChunk(QWidget):
             self.base_alter_view()
             return
 
+        current_text = self.drop_down.currentText()
+        if current_text == "":
+            return
         path = self.saved_output_format_names[self.drop_down.currentText()]
         saved = output_format.read_saved(path)
 
@@ -295,7 +298,47 @@ class TabChunk(QWidget):
             current.setText(s)
 
 
-    def add_prompts(self):
+    def save_format(self):
+        header = []
+        prompts = []
+        sites = []
+
+        for i in range(self.column_section.count()):
+            curr = self.column_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                header.append(curr.text())
+
+        if len(header) == 0:
+            show_error_to_user("There are no output columns set")
+            return
+        
+        for i in range(self.prompt_section.count()):
+            curr = self.prompt_section.itemAt(i).widget()
+            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
+                prompts.append(curr.toPlainText())
+
+        if len(prompts) == 0:
+            prompts = output_format.build_prompts(header)
+
+        for i in range(self.site_section.count()):
+            curr = self.site_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                sites.append(curr.text())
+
+        name, ok = QInputDialog().getText(self, "Format name", "Enter a name" \
+                                          " for the new format")
+        if name and ok:
+            to_save = {"header": header,
+                       "prompts": prompts,
+                       "sites": sites,
+                       "name": name}
+            output_format.save_format(to_save)
+            self.update_output_format_names()
+        else:
+            return
+
+
+    def generate_prompts(self):
         columns = []
         for i in range(self.column_section.count()):
             curr = self.column_section.itemAt(i).widget()
@@ -318,14 +361,18 @@ class TabChunk(QWidget):
 
 
     def update_output_format_names(self):
-        viable_paths = [f for f in os.listdir(self.output_format_folder) \
+        viable_paths = [f for f in os.listdir(output_format.SAVED_FOLDER) \
                         if os.path.splitext(f)[-1].lower() == ".txt"]
 
         # Every key is the name, excluding .txt, and every value is the
         #  path
         self.saved_output_format_names = {os.path.splitext(name)[0] \
-                                          : self.output_format_folder+"/"+name
-                                          for name in viable_paths}
+                                          : output_format.SAVED_FOLDER + "/" \
+                                          + name for name in viable_paths}
+
+        self.drop_down.clear()
+        self.drop_down.addItems([self.base_drop_down_text] + \
+                           list(self.saved_output_format_names.keys()))
 
         
 class UserInterface(QMainWindow):
@@ -368,6 +415,10 @@ class UserInterface(QMainWindow):
 
 
 def show_error_to_user(message):
+    dialog = QMessageBox()
+    dialog.setWindowTitle("Error")
+    dialog.setText(message)
+    dialog.exec()
     # possibly use QMessageBox
     print(message)
 
