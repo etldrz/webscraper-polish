@@ -41,30 +41,27 @@ def build_output_file(file_path, header):
     wb.save(file_path)
 
 
-def read_csv(file_path):
+def read_csv(file_path, table):
     """
     Reads some csv and loads each researcher as a dict into the list to_search.
     """
     to_search = []
+    for_table = ""
     with open(file_path, 'r') as f:
         reader = csv.reader(f)
         header = next(reader)
 
+
         for person in reader:
-
-            # If the domain is not included
-            #if len(researcher) == 2:
-            #    researcher.append("N/A")
-
             person_data = {header[i].lower() : person[i] \
                               for i in range(0,len(header))}
             person_data['header'] = list(map(lambda x: x.lower(), header))
 
             to_search.append(person_data)
+            for_table += person_data["name"] + "," \
+                + person_data["institution"] + "*"
 
-            #to_search.append({"Name": researcher[0],
-            #                  "Institution": researcher[1],
-            #                  "Domain": researcher[2]})
+    table.emit(for_table)
     return to_search
 
 
@@ -181,10 +178,10 @@ def write_to_excel(output_path, person, log):
     
     ws.append(to_write)
     wb.save(output_path)
-    log.emit("<br><br><b>Saved to excel output.</b>")
+    log.emit("<br><br><b>Saved to excel output.</b><br>")
 
 
-def main(input_path, output_name, output_format, log):
+def main(input_path, output_name, output_format, log, table):
     """
     For some csv formatted correctly (ie has a header and is filled with
     researchers, their institutions, and their domains) this will get
@@ -203,7 +200,7 @@ def main(input_path, output_name, output_format, log):
     file.
     """
 
-    to_search = read_csv(input_path)
+    to_search = read_csv(input_path, table)
     log.emit("<h2>Starting scraping on " + str(len(to_search)) + \
              " individuals.</h2><br><br><b>OUTPUT HEADER:</b><br>" + \
              ", ".join(output_format["header"]) + "<br>")
@@ -218,29 +215,33 @@ def main(input_path, output_name, output_format, log):
 
     client = analysis.animate_client()
 
+    count = 0
     for person in to_search:
+        start = time.time()
         log.emit("<br><h3>Scraping " + person['name'] + ", " + \
                  person["institution"] + "</h3><br><br>")
+
         agent = random.choice(user_agents)
         person["links used"] = get_links(person, output_format["sites"], agent,
                                          log)
-        print(person["links used"])
-        print(type(person["links used"]))
-
-        log.emit("<b>Sites found:</b>")
+        log.emit("<b>Sites found: ")
         # If no good links are found, then
         if len(person['links used']) == 0:
-            log.emit("N/A<br>")
+            log.emit("N/A</b><br>")
             person['output'] = analysis.bad_output("no links found :/")
         else:
-            log.emit(str(len(person["links used"]) + "<br>"))
+            log.emit(str(len(person["links used"])) + "</b><br>")
             log.emit("<br>".join([f"<a href=\"{site}\">{site}</a>" \
                                   for site in person["links used"]]))
 
         person["output"] = analysis.analyze(person, client,
                                             output_format["prompts"])
-        write_to_excel(output_name, person, log)
 
+        write_to_excel(output_name, person, log)
+        end = time.time()
+        log.emit("<b>Time spent: " + str(round(end - start, 2)) + " s</b>")
+        table.emit("completed:" + str(count))
+        count += 1
     return
 
 

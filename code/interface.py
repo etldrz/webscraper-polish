@@ -4,7 +4,8 @@ import output_format
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QGridLayout, QLineEdit, QFileDialog, QWidget,
     QPushButton, QTabWidget, QMessageBox, QVBoxLayout, QLabel, QComboBox,
-    QPlainTextEdit, QScrollArea, QHBoxLayout, QInputDialog
+    QPlainTextEdit, QScrollArea, QHBoxLayout, QInputDialog, QTableWidget,
+    QTableWidgetItem
     )
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
@@ -13,15 +14,19 @@ from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 class Worker(QObject):
     finished = pyqtSignal()
     to_log = pyqtSignal(str)
+    to_table = pyqtSignal(str)
+
+
     def __init__(self, input_path, output_name, output_format):
         super().__init__()
         self.input_path = input_path
         self.output_name = output_name
         self.output_format = output_format
 
+
     def run(self):
         main.main(self.input_path, self.output_name, self.output_format,
-                  self.to_log)
+                  self.to_log, self.to_table)
         self.finished.emit()
 
 
@@ -127,6 +132,7 @@ class TopChunk(QWidget):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.to_log.connect(self.tab_chunk.add_log_text)
+        self.worker.to_table.connect(self.tab_chunk.set_table_values)
         self.thread.start()
 
         self.process_button.setEnabled(False)
@@ -166,9 +172,38 @@ class TabChunk(QWidget):
 
 
     def init_table_tab(self):
-        label = QLabel("Finish me, please")
-        self.tabs.addTab(label, "Table")
+        self.table = QTableWidget()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.table)
+        self.table.setColumnCount(3)
+        header = ["Person", "Institution", "Completed?"]
+        self.table.setHorizontalHeaderLabels(header)
+        self.tabs.addTab(scroll_area, "Table")
 
+
+    def set_table_values(self, info):
+        if "completed" in info:
+            # The completed string is formatted as such: 'completed:ROW_NUM'
+            row = int(info.split(":")[-1])
+            curr_completed = self.table.setItem(row, 2, QTableWidgetItem("Yes"))
+            
+            #do shit
+            return
+        else:
+            # '*' is used as a splitter between each researcher being scraped
+            #  while ',' is used as a splitter between the name and the
+            #  institution.
+            #  'NAME1,INSTITUTION1*NAME2,INSTITUTION2'
+            people = [person.split(",") for person in info.split("*")]
+            # There will always be an empty array at the end 
+            del people[-1]
+            self.table.setRowCount(len(people))
+            for r in range(len(people)):
+                for c in range(len(people[r])):
+                    self.table.setItem(r, c, QTableWidgetItem(people[r][c]))
+                    self.table.setItem(r, 2, QTableWidgetItem("No"))
+            
 
     def init_log_tab(self):
         self.log = QLabel("Please GOD, finish me")
