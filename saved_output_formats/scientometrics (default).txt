@@ -3,6 +3,6 @@ Name,Last Name,Institution,Title,Domain,Gender,Topic,Research Focus,Expertise,Re
 #USEFUL_SEARCH_TERMS
 researchgate,ieee
 #PROMPTS
-When given the name 'PERSON_NAME' and the institution of 'INSTITUTION_NAME', I want you to find the following data for the individual. 'Email', 'Title', 'Gender', 'Research fields'. Infer their gender from input. Output should be in JSON format. If you cannot find information on a particular topic, enter 'NONE' for that field. Do not include sub-JSONs or sub-lists.
+When given the name 'PERSON_NAME' and the institution of 'INSTITUTION_NAME', I want you to find the following data for the individual. 'Title', 'Gender', 'Research fields'. Infer their gender from input. Output should be in JSON format. If you cannot find information on a particular topic, enter 'NONE' for that field. Do not include sub-JSONs or sub-lists.
 When given the name 'PERSON_NAME' and the institution of 'INSTITUTION_NAME', I want you to find the following data for the individual. 'Research focus', 'Expertise'. Output should be in JSON format. If you cannot find information on a particular topic, enter 'NONE' for that field. Do not include sub-JSONs or sub-lists.
 When given the name 'PERSON_NAME' and the institution of 'INSTITUTION_NAME', I want you to find the following data for the individual. 'Patents under their name', 'Awards received'. Output should be in JSON format. If you cannot find information on a particular topic, enter 'NONE' for that field. Do not include sub-JSONs or sub-lists.

@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit, QScrollArea, QHBoxLayout, QInputDialog, QTableWidget,
     QTableWidgetItem
     )
-from PyQt6.QtGui import QPalette, QColor, QIcon
+from PyQt6.QtGui import QPalette, QColor, QIcon, QPixmap
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 
 
@@ -67,44 +67,6 @@ class TopChunk(QWidget):
         self.input_filepath.insert(str(response[0]))
 
 
-    def load_format(self):
-        column_section = self.tab_chunk.column_section
-        prompt_section = self.tab_chunk.prompt_section
-        site_section = self.tab_chunk.site_section
-
-        formatting = {"header": [],
-                     "prompts": [],
-                     "sites": []}
-
-        for i in range(column_section.count()):
-            curr = column_section.itemAt(i).widget()
-            if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting["header"].append(curr.text())
-
-        if len(formatting["header"]) == 0:
-            chosen_format = self.tab_chunk.drop_down.currentText()
-            if chosen_format == self.tab_chunk.base_drop_down_text:
-                chosen_format = "base"
-            print(chosen_format)
-            return output_format.read_saved(chosen_format)
-
-        for i in range(prompt_section.count()):
-            curr = prompt_section.itemAt(i).widget()
-            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
-                formatting["prompts"].append(curr.toPlainText())
-
-        if len(formatting["prompts"]) == 0:
-            formatting["prompts"] = output_format.build_prompts(
-                formatting["header"])
-
-        for i in range(site_section.count()):
-            curr = site_section.itemAt(i).widget()
-            if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting["sites"].append(curr.text())
-
-        return formatting
-
-
     def process(self):
         path = self.input_filepath.text()
         file_name = os.path.basename(path)
@@ -147,6 +109,43 @@ class TopChunk(QWidget):
         self.thread.finished.connect(dialog.exec)
 
 
+    def load_format(self):
+        column_section = self.tab_chunk.column_section
+        prompt_section = self.tab_chunk.prompt_section
+        site_section = self.tab_chunk.site_section
+
+        formatting = {"header": [],
+                     "prompts": [],
+                     "sites": []}
+
+        for i in range(column_section.count()):
+            curr = column_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting["header"].append(curr.text())
+
+        if len(formatting["header"]) == 0:
+            chosen_format = self.tab_chunk.drop_down.currentText()
+            if chosen_format == self.tab_chunk.base_drop_down_text:
+                chosen_format = "base"
+            print(chosen_format)
+            return output_format.read_saved(chosen_format)
+
+        for i in range(prompt_section.count()):
+            curr = prompt_section.itemAt(i).widget()
+            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
+                formatting["prompts"].append(curr.toPlainText())
+
+        if len(formatting["prompts"]) == 0:
+            formatting["prompts"] = output_format.build_prompts(
+                formatting["header"])
+
+        for i in range(site_section.count()):
+            curr = site_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting["sites"].append(curr.text())
+
+        return formatting
+
 
 class TabChunk(QWidget):
 
@@ -166,20 +165,32 @@ class TabChunk(QWidget):
         self.tabs.setMovable(False)
         self.tabs.setStyleSheet("background:white")
 
+        self.init_alteration_tab()
         self.init_table_tab()
         self.init_log_tab()
-        self.init_alteration_tab()
 
 
     def init_table_tab(self):
         self.table = QTableWidget()
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(self.table)
         self.table.setColumnCount(3)
         header = ["Person", "Institution", "Completed?"]
         self.table.setHorizontalHeaderLabels(header)
-        self.tabs.addTab(scroll_area, "Table")
+        layout = QHBoxLayout()
+        buffer_count = 18
+        for i in range(buffer_count):
+            layout.addWidget(QLabel())
+        layout.addWidget(self.table)
+        for i in range(buffer_count):
+            layout.addWidget(QLabel())
+
+        table_tab_widget = QWidget()
+        table_tab_widget.setLayout(layout)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(table_tab_widget)
+
+        self.tabs.addTab(table_tab_widget, "Table")
 
 
     def set_table_values(self, info):
@@ -187,9 +198,6 @@ class TabChunk(QWidget):
             # The completed string is formatted as such: 'completed:ROW_NUM'
             row = int(info.split(":")[-1])
             curr_completed = self.table.setItem(row, 2, QTableWidgetItem("Yes"))
-            
-            #do shit
-            return
         else:
             # '*' is used as a splitter between each researcher being scraped
             #  while ',' is used as a splitter between the name and the
@@ -206,7 +214,7 @@ class TabChunk(QWidget):
             
 
     def init_log_tab(self):
-        self.log = QLabel("Please GOD, finish me")
+        self.log = QLabel("")
         self.log.setWordWrap(True)
         self.log.setOpenExternalLinks(True)
         scroll_area = QScrollArea()
@@ -427,7 +435,12 @@ class UserInterface(QMainWindow):
         self.layout = QGridLayout()
 
         tab_chunk = TabChunk(self)
-        self.layout.addWidget(tab_chunk.tabs, 2, 2, 3, 3)
+        self.layout.addWidget(tab_chunk.tabs, 4, 0, 4, 5)
+
+        #logo = QPixmap("data/vtarc_logo.png")
+        #label = QLabel()
+        #label.setPixmap(logo)
+        #self.layout.addWidget(label, 0, 0, 2, 2)
 
         top_chunk = TopChunk(self, tab_chunk)
         self.layout.addWidget(top_chunk.input_filepath, 0, self.COL_MAX - 1,
@@ -444,7 +457,10 @@ class UserInterface(QMainWindow):
 
         container = QWidget()
         container.setLayout(self.layout)
-        container.setStyleSheet("background:rgb(150,50,30)")
+
+        #container.setStyleSheet("background:black")
+        container.setStyleSheet("background:rgb(20,20,20)")
+        #container.setStyleSheet("background:rgb(150,50,30)")
         self.setCentralWidget(container)
         self.resize(800, 600)
 
@@ -460,5 +476,4 @@ def show_error_to_user(message):
 app = QApplication([])
 window = UserInterface()
 window.show()
-
 app.exec()

@@ -1,3 +1,6 @@
+from bs4 import BeautifulSoup
+from user_agents import user_agents
+from openpyxl import Workbook, load_workbook
 import random
 import requests
 import csv
@@ -7,9 +10,6 @@ import pandas as pd
 import numpy as np
 import output_format
 import analysis
-from bs4 import BeautifulSoup
-from user_agents import user_agents
-from openpyxl import Workbook, load_workbook
 
 bad_link_prefixes = ["/search", "q=", "/?",
                      "/advanced_search"]
@@ -215,6 +215,14 @@ def main(input_path, output_name, output_format, log, table):
 
     client = analysis.animate_client()
 
+    get_email = False
+    if "email" in output_format["header"] \
+       or "Email" in output_format["header"]:
+        get_email = True
+
+    print(get_email)
+    print(output_format["header"])
+
     count = 0
     for person in to_search:
         start = time.time()
@@ -228,14 +236,14 @@ def main(input_path, output_name, output_format, log, table):
         # If no good links are found, then
         if len(person['links used']) == 0:
             log.emit("N/A</b><br>")
-            person['output'] = analysis.bad_output("no links found :/")
+            person["output"] = analysis.bad_output("no links found :/")
         else:
             log.emit(str(len(person["links used"])) + "</b><br>")
             log.emit("<br>".join([f"<a href=\"{site}\">{site}</a>" \
                                   for site in person["links used"]]))
 
         person["output"] = analysis.analyze(person, client,
-                                            output_format["prompts"])
+                                            output_format["prompts"], get_email)
 
         write_to_excel(output_name, person, log)
         end = time.time()

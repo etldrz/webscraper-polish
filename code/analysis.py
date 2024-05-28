@@ -1,10 +1,12 @@
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from user_agents import user_agents
-import os
-import random
 from dotenv import load_dotenv
 from openai import OpenAI
+import requests
+import os
+import random
+import re
 import json
 
 agent = random.choice(user_agents)
@@ -41,36 +43,6 @@ def get_webtext(link):
     except Exception as e:
         print(e)
         return ""
-
-
-#def build_prompts(full_name, institution):
-#    """
-#    Builds three seperate prompts for GPT to analyze. Each prompt is flanked by
-#    base_prompt/end_prompt.
-#    """
-#
-#    base_prompt = "When given the name '" + full_name + "' and the institution of" \
-#        " '" + institution + "', I want you to find the following data for the individual."
-#
-#    end_prompt = " If you can find nothing, still output the JSON in the desired format," \
-#        " with 'NONE' in every category. Output should be in JSON format. If you cannot" \
-#        " find information on a particular topic, enter 'NONE' for that field." \
-#        " Do not include sub-JSONs or sub-lists."
-#
-#    prompta = base_prompt + \
-#        " 'Email', 'Title', 'Gender', 'Research fields'." \
-#        " Infer their gender from input." \
-#        + end_prompt
-#
-#    promptb = base_prompt + \
-#        " 'Research focus', 'Expertise'" \
-#        + end_prompt
-#
-#    promptc = base_prompt + \
-#        " 'Patents under their name', 'Awards received'" \
-#        + end_prompt
-#
-#    return [prompta, promptb, promptc]
 
 
 def generate_response(client, prompt_list, webtext, person):
@@ -183,19 +155,32 @@ def combine_dicts(to_combine):
     return total
 
 
-def analyze(person, client, prompts):
+def get_email(webtext, link):
+    agent = random.choice(user_agents)
+    req = requests.get(link, agent)
+    bs = BeautifulSoup(req.content, 'html.parser')
+
+    anchors = bs.select("a")
+    to_analyze = [txt.string for txt in anchors \
+                  if txt.string is not None]
+    to_analyze = " ".join(to_analyze)
+    matches = re.findall(r'[\w+.\d-]*@[\w+.-]*', to_analyze)
+    print(matches)
+    return matches
+
+
+def analyze(person, client, prompts, need_email):
     """
     When given a researcher dict and an instance of an openai client, this
     will return a fully completed dict with all of the needed output. If
     there is no good output for some reason, this will return a dict created
     by bad_output().
     """
-
-    #prompt_list = build_prompts(person['name'], person['institution'])
-
     all_output = []
     for link in person['links used']:
         webtext = get_webtext(link)
+        if need_email:
+            all_output.append({"email": get_email(webtext, link)})
         all_output.append(generate_response(client, prompts, webtext, person))
 
     output = combine_dicts(all_output)
