@@ -20,6 +20,7 @@
 
 1. Clone or download the `Merged-Code` branch of this repository.
 1. Download the requirements (`pip install -r requirements.txt`). It is recommended to do this inside of a [virtual environment](https://www.freecodecamp.org/news/how-to-setup-virtual-environments-in-python/).
+1. Put the API key for OpenAI into an environment file: `./.env` as `OPENAI_API_KEY=...`
 1. The command `python interface.py` will initiate the GUI, as well as the rest of the code.
 1. From here, all that needs to be done is load the file (using the GUI's buttons) and press 'Process'.
 
