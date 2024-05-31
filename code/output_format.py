@@ -6,6 +6,13 @@ SAVED_FOLDER = "saved_output_formats"
 DEFAULT_NAME = "scientometrics (default).txt"
 DEFAULT_PATH = SAVED_FOLDER + "/" + DEFAULT_NAME
     
+RESERVED_COLUMNS = ["email", "emails", "Email", "Emails",
+                    "Other key notes", "other key notes",
+                    "Relevant links", "relevant links",
+                    "Name", "name",
+                    "Institution", "institution"]
+
+
 def build_prompts(columns):
     col_count = len(columns)
     optim_prompt_size = 3
@@ -18,7 +25,18 @@ def build_prompts(columns):
         " information on a particular topic, enter 'NONE' for that field. Do not" \
         " include sub-JSONs or sub-lists."
 
+    for r in RESERVED_COLUMNS:
+        if r in columns:
+            ind = columns.index(r)
+            del columns[ind]
+            if r.lower() == "other key notes":
+                columns += ["Patents under their name", "Awards recieved"]
+
     prompts = []
+
+    if len(columns) == 0:
+        return ["NONE"]
+        
     if col_count < optim_prompt_size:
         requested = "'" + "', '".join(columns) + "'."
         prompts.append(start + requested + end)

@@ -214,16 +214,18 @@ def main(input_path, output_name, output_format, log, table):
     build_output_file(output_name, output_format["header"])
 
     client = analysis.animate_client()
+    log.emit("<br>GPT client successfully activated.<br>")
 
     get_email = False
     if "email" in output_format["header"] \
-       or "Email" in output_format["header"]:
+       or "Email" in output_format["header"] \
+       or "emails" in output_format["header"] \
+       or "Emails" in output_format["header"]:
+        log.emit("Regex will be used to scrape emails.<br>")
         get_email = True
 
-    print(get_email)
-    print(output_format["header"])
-
     count = 0
+    total_time_start = time.time()
     for person in to_search:
         start = time.time()
         log.emit("<br><h3>Scraping " + person['name'] + ", " + \
@@ -243,13 +245,19 @@ def main(input_path, output_name, output_format, log, table):
                                   for site in person["links used"]]))
 
         person["output"] = analysis.analyze(person, client,
-                                            output_format["prompts"], get_email)
+                                            output_format["prompts"], get_email,
+                                            log)
 
         write_to_excel(output_name, person, log)
         end = time.time()
         log.emit("<b>Time spent: " + str(round(end - start, 2)) + " s</b>")
         table.emit("completed:" + str(count))
         count += 1
+
+    total_time_end = time.time()
+    total_time = round((total_time_end - total_time_start) / 60, 2)
+    log.emit("<br><br><b>Scraping complete. Total time spent: " + \
+             str(total_time) + "minutes </b>")
     return
 
 

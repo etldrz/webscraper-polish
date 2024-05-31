@@ -25,7 +25,7 @@ def animate_client():
     return client
 
 
-def get_webtext(link):
+def get_webtext(link, log):
     """
     Gets the text of some webpage located at the given URL (the URL has
     to be good). The returned text is sans html/css. If the text-getting
@@ -41,11 +41,11 @@ def get_webtext(link):
                 '"', '').replace("\xa0", '').strip()
         return webtext
     except Exception as e:
-        print(e)
+        log.emit("<br>The webtext of " + link + " could not be gotten<br><br>")
         return ""
 
 
-def generate_response(client, prompt_list, webtext, person):
+def generate_response(client, prompt_list, webtext, person, log):
     """
     Gets a response item from an openai client based off of text from some website
     and a given prompt. If the response-getting fails, bad_output() is returned.
@@ -72,7 +72,9 @@ def generate_response(client, prompt_list, webtext, person):
             #   end for some reason.
             if isinstance(response, dict):
                 output = output | bad_output(str(response))
-                print(bad_output((str(response))))
+                log.emit("GPT failed to properly analyze the current webtext." \
+                         " Here is openai's reasoning:<br>" + str(response) + \
+                         "<br><br>.")
             # else, if the response is good, return the text gpt generated
             #   as a dictionary (additional checks are preformed
             #   by this function).
@@ -81,7 +83,8 @@ def generate_response(client, prompt_list, webtext, person):
                                        person)
                 output = output | as_dict
         except Exception as e:
-            print(e)
+            log.emit("GPT failed to generate output for some reason, here is" \
+                     " the exception.<br>" + str(e) + "<br><br>")
             output = output | bad_output(e)
 
     return output
@@ -169,19 +172,22 @@ def get_email(webtext, link):
     return matches
 
 
-def analyze(person, client, prompts, need_email):
+def analyze(person, client, prompts, need_email, log):
     """
     When given a researcher dict and an instance of an openai client, this
     will return a fully completed dict with all of the needed output. If
     there is no good output for some reason, this will return a dict created
     by bad_output().
     """
+    skip_gpt = prompts[0] == "NONE"
     all_output = []
     for link in person['links used']:
-        webtext = get_webtext(link)
+        webtext = get_webtext(link, log)
         if need_email:
             all_output.append({"email": get_email(webtext, link)})
-        all_output.append(generate_response(client, prompts, webtext, person))
+        if not skip_gpt:
+            all_output.append(generate_response(client, prompts, webtext,
+                                                person, log))
 
     output = combine_dicts(all_output)
     return output

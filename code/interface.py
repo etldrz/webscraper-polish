@@ -127,7 +127,6 @@ class TopChunk(QWidget):
             chosen_format = self.tab_chunk.drop_down.currentText()
             if chosen_format == self.tab_chunk.base_drop_down_text:
                 chosen_format = "base"
-            print(chosen_format)
             return output_format.read_saved(chosen_format)
 
         for i in range(prompt_section.count()):
@@ -411,7 +410,8 @@ class TabChunk(QWidget):
         #  path
         self.saved_output_format_names = {os.path.splitext(name)[0] \
                                           : output_format.SAVED_FOLDER + "/" \
-                                          + name for name in viable_paths}
+                                          + name \
+                                          for name in viable_paths}
 
         self.drop_down.clear()
         self.drop_down.addItems([self.base_drop_down_text] + \
