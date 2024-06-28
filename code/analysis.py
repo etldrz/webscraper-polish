@@ -44,7 +44,7 @@ def get_webtext(link, log):
         log.emit("<br>The webtext of " + link + " could not be gotten<br><br>")
         return ""
 
-
+##### MAKE SURE TO CHECK FOR OPENAI ERRORS, SEE https://github.com/openai/openai-python
 def generate_response(client, prompt_list, webtext, person, log):
     """
     Gets a response item from an openai client based off of text from some website
@@ -54,7 +54,7 @@ def generate_response(client, prompt_list, webtext, person, log):
     #output = {"Name": researcher['Name'],
     #          "Institution": researcher['Institution'],
     #          "Domain": researcher['Domain']}
-    output = {h : person[h] for h in person['header']}
+    output = {h : person[h.lower()] for h in person['header']}
 
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
