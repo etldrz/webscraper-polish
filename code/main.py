@@ -18,7 +18,7 @@ bad_link_prefixes = ["/search", "q=", "/?",
 bad_locations = ["facebook", "instagram",
                  "linkedin", "twitter", "ratemyprofessors",
                  "coursicle", "youtube", "amazon",
-                ".doc", ".pdf", "wiki", "imgres"]
+                 ".doc", ".pdf", "wiki", "imgres", "fencingtracker"]
 
 
 def build_output_file(file_path, header, log):

@@ -269,8 +269,8 @@ class TabChunk(QWidget):
      parent: the parent widget
 
     Class variables:
-     base_drop_down_text: what is displayed when the 'Alter output' tab is
-      empty
+     base_drop_down_text: what is displayed in the drop down when the
+      'Alter output' tab is empty
 
     Methods:
      init_tabs: creates and calls functions for each tab
@@ -278,7 +278,29 @@ class TabChunk(QWidget):
      set_table_values: called whenever the table needs to be updated
      def_init_log_tab: creates the log
      add_log_text: adds text to the log. Text is formatted using basic HTML
-     
+     init_alteration_tab: builds the tab used to change and select the output
+      format to be used for scraping
+     base_alter_view: the bare-bones view that is applied to the alteration tab
+      when either the base_drop_down_text is selected in the drop down, or the
+      GUI first starts up
+     add_new_column_box: adds a new box in the output column section. Used to
+      set up the alteration tab, and add new input options when the 'Add output'
+      button is clicked
+     add_new_prompt_box: same as above, except for prompts
+     add_new_site_box: same, except for sites
+     load_format: triggered when the drop down menu has a new option selected.
+      it will take the user's choice, find the corresponding txt file, and
+      load in the format into the alteration tab.
+     save_format: saves the current format using the selected name (chosen in
+      a dialog box) in a text file in ./saved_output_formats/
+     generate_prompts: this will automatically add prompts (overwritting any
+      already there) to the prompt section of the alteration tab. see
+      output_format.py for how these prompts are made.
+     clear_layout: resets the alteration layout to base
+     update_output_format_names: sets the values of the dropdown box in the
+      alteration tab with the current saved format names
+     __init__: sets the parent widget, creates an empty dict to contain output
+      formats and calls init_tabs
     """
 
     base_drop_down_text = "Enter new format"
@@ -292,21 +314,33 @@ class TabChunk(QWidget):
         
 
     def init_tabs(self):
+        """
+        Creates the base layout of the tab portion of the GUI
+        """
         self.tabs = QTabWidget()
         self.tabs.setTabPosition(QTabWidget.TabPosition.North)
         self.tabs.setMovable(False)
         self.tabs.setStyleSheet("background:white")
 
+        # builds the basics of each tab
         self.init_alteration_tab()
         self.init_table_tab()
         self.init_log_tab()
 
 
     def init_table_tab(self):
+        """
+        Creates the basic layout of the table tab, using a QTableWidget object.
+        The table has three columns and will have a number of rows equal to the
+        amount of people being scraped. The table is centered through an
+        extremely hacky method, but so it goes.
+        """
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         header = ["Person", "Institution", "Completed?"]
         self.table.setHorizontalHeaderLabels(header)
+
+        # centering the table using empty space
         layout = QHBoxLayout()
         buffer_count = 18
         for i in range(buffer_count):
@@ -315,9 +349,12 @@ class TabChunk(QWidget):
         for i in range(buffer_count):
             layout.addWidget(QLabel())
 
+        # creating a widget to hold the layout
         table_tab_widget = QWidget()
         table_tab_widget.setLayout(layout)
 
+        # making sure that the table can be scrolled through if the number
+        #  of people is larger than what the screen can hold
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(table_tab_widget)
@@ -326,18 +363,35 @@ class TabChunk(QWidget):
 
 
     def set_table_values(self, info):
+        """
+        This is updated when the Worker class variable table is pinged.
+        Each time the scraping script pings table, it sends in a string that
+        is encoded via specific deliminators.
+        A ping letting the table know that a specific person has been scrapped
+        and saved would be
+         completed:ROW_NUM
+        where ROW_NUM is the row number corresponding to the name/institution
+        of the finished person.
+        Building the table is done via a string like
+         NAME1,INSTITUTION1*NAME2,INSTITUTION2
+        with each name/institution found in the input csv file.
+
+        info: the string being analyzed
+        """
+
         if "completed" in info:
-            # The completed string is formatted as such: 'completed:ROW_NUM'
             row = int(info.split(":")[-1])
             curr_completed = self.table.setItem(row, 2, QTableWidgetItem("Yes"))
         else:
             # '*' is used as a splitter between each researcher being scraped
             #  while ',' is used as a splitter between the name and the
             #  institution.
-            #  'NAME1,INSTITUTION1*NAME2,INSTITUTION2'
             people = [person.split(",") for person in info.split("*")]
-            # There will always be an empty array at the end 
+
+            # there will always be an empty array at the end 
             del people[-1]
+
+            # fills the table
             self.table.setRowCount(len(people))
             for r in range(len(people)):
                 for c in range(len(people[r])):
@@ -346,6 +400,10 @@ class TabChunk(QWidget):
             
 
     def init_log_tab(self):
+        """
+        Initializes an empty QLabel to be the log, that has a QScrollArea
+        """
+
         self.log = QLabel("")
         self.log.setWordWrap(True)
         self.log.setOpenExternalLinks(True)
@@ -356,10 +414,20 @@ class TabChunk(QWidget):
 
 
     def add_log_text(self, text):
+        """
+        Updates the log
+
+        text: the text to add to the log
+        """
+
         self.log.setText(self.log.text() + text)
 
 
     def init_alteration_tab(self):
+        """
+        
+        """
+
         self.alter_layout = QVBoxLayout()
         self.scroll_area = QScrollArea()
 
@@ -460,7 +528,18 @@ class TabChunk(QWidget):
         if current_text == "":
             return
         path = self.saved_output_format_names[self.drop_down.currentText()]
-        saved = output_format.read_saved(path)
+
+        if os.path.exists(path):
+            saved = output_format.read_saved(path)
+        else:
+            show_error_to_user("It looks like the selected format is no" \
+                               " longer available for some reason; it could" \
+                               " have been deleted or moved.")
+            index = self.drop_down.findText(self.drop_down.currentText())
+            self.drop_down
+            self.drop_down.removeItem(index)
+            self.load_format()
+            return
 
         for h in saved["header"]:
             current = self.add_new_column_box()
@@ -603,8 +682,6 @@ def show_error_to_user(message):
     dialog.setWindowTitle("Error")
     dialog.setText(message)
     dialog.exec()
-    # possibly use QMessageBox
-    print(message)
 
 app = QApplication([])
 window = UserInterface()

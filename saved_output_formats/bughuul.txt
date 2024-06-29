@@ -1,6 +1,0 @@
-#HEADER
-dogs,cats,three legged dogs,one single snail,name,likes_frogs,institution,domain
-#USEFUL_SEARCH_TERMS
-merriam webster,urban dictionary
-#PROMPTS
-When given the name 'PERSON_NAME' and the institution of 'INSTITUTION_NAME', I want you to find the following data for the individual: 'dogs', 'cats', 'three legged dogs', 'one single snail'. Output should be in JSON format. If you cannot find information on a particular topic, enter 'NONE' for that field. Do not include sub-JSONs or sub-lists.

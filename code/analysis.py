@@ -54,7 +54,7 @@ def generate_response(client, prompt_list, webtext, person, log):
     #output = {"Name": researcher['Name'],
     #          "Institution": researcher['Institution'],
     #          "Domain": researcher['Domain']}
-    output = {h : person[h.lower()] for h in person['header']}
+    #output = {h : person[h.lower()] for h in person['header']}
 
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
@@ -180,7 +180,8 @@ def analyze(person, client, prompts, need_email, log):
     by bad_output().
     """
     skip_gpt = prompts[0] == "NONE"
-    all_output = []
+    all_output = [{h : person[h.lower()]} for h in person['header']]
+
     for link in person['links used']:
         webtext = get_webtext(link, log)
         if need_email:
