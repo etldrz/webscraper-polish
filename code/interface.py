@@ -425,9 +425,14 @@ class TabChunk(QWidget):
 
     def init_alteration_tab(self):
         """
-        
+        Builds the initial view of the alteration tab. To start with, there
+        will be one textbox for column output, prompts, and sites. This is also
+        the view that is built when the dropdown has base_drop_down_text
+        selected.
         """
 
+        # making this area scrollable so that input options don't go off the
+        #  screen if there are a lot
         self.alter_layout = QVBoxLayout()
         self.scroll_area = QScrollArea()
 
@@ -437,8 +442,10 @@ class TabChunk(QWidget):
         self.prompt_section = QVBoxLayout()
         self.site_section = QVBoxLayout()
 
+        # the top row of clickables
         saved_format_section = QHBoxLayout()
-        # To add: a way to save and name current setups
+
+        # building the header_section
         self.drop_down = QComboBox()
         self.update_output_format_names()
         self.drop_down.currentTextChanged.connect(self.load_format)
@@ -462,6 +469,7 @@ class TabChunk(QWidget):
         self.alter_layout.addLayout(self.prompt_section)
         self.alter_layout.addLayout(self.site_section)
 
+        # building the rest of the tab, where the user text input happens
         self.base_alter_view()
         
         widget = QWidget()
@@ -472,9 +480,15 @@ class TabChunk(QWidget):
 
 
     def base_alter_view(self):
+        """
+        This builds the alteration tab to have three text input boxes and three
+        buttons to go along with them. It is used when setting up the tab, and
+        when base_drop_down_text is selected
+        """
+
         # The below chunk initializes the first column input text box, and
         #  its corresponding button.
-        self.add_column = QPushButton("Add output")
+        self.add_column = QPushButton("Add output column")
         self.add_column.clicked.connect(self.add_new_column_box)
         self.add_new_column_box()
 
@@ -485,12 +499,17 @@ class TabChunk(QWidget):
         self.add_new_prompt_box()
 
         # This chunk accomplishes the same as above, except for useful sites
-        self.add_site = QPushButton("Add site")
+        self.add_site = QPushButton("Add useful site")
         self.add_site.clicked.connect(self.add_new_site_box)
         self.add_new_site_box()
 
 
     def add_new_column_box(self):
+        """
+        Adds a new column output text box to the bottom of the text boxes,
+        and re-adds the button to add a new text box (which links to here)
+        """
+
         column_input = QLineEdit()
         column_input.setPlaceholderText("Enter column outputs")
         self.column_section.addWidget(column_input)
@@ -499,6 +518,10 @@ class TabChunk(QWidget):
 
 
     def add_new_prompt_box(self):
+        """
+        Adds a new prompt input box and moves the button down
+        """
+
         prompt_input = QPlainTextEdit()
         prompt_input.setPlaceholderText("If no prompt is inputted, the" \
                                         " default option will be used")
@@ -508,6 +531,10 @@ class TabChunk(QWidget):
 
 
     def add_new_site_box(self):
+        """
+        Adds a new site input box and moves the button down
+        """
+
         site_input = QLineEdit()
         site_input.setPlaceholderText("Enter useful sites to scrape")
         self.site_section.addWidget(site_input)
@@ -516,31 +543,50 @@ class TabChunk(QWidget):
 
 
     def load_format(self):
+        """
+        This is called whenever the dropdown's text changes, whatever it
+        changes to is then loaded into the alteration tab. The names of the
+        saved formats are the options in the dropdown and are kept in
+        ./saved_output_formats/ as .txt files
+        """
+
+        # wipes the current layout
         self.clear_layout(self.column_section)
         self.clear_layout(self.prompt_section)
         self.clear_layout(self.site_section)
 
+        # if the base option is selected on the drop down, then just build
+        #  it basic and leave it 
         if self.drop_down.currentText() == self.base_drop_down_text:
             self.base_alter_view()
             return
 
+        # gets the current text and gets it's corresponding path, which is
+        #  saved in the dict saved_output_format_names
         current_text = self.drop_down.currentText()
         if current_text == "":
             return
         path = self.saved_output_format_names[self.drop_down.currentText()]
 
+        # if the path exists then the saved format is loaded in as a dict.
+        #  'header': output headers
+        #  'sites': additional sites, if any
+        #  'prompts': prompts to use
+        #  'name': the name of the saved format
+        # else, an error dialog is displayed and the bad item is removed from
+        #  the drop down
         if os.path.exists(path):
             saved = output_format.read_saved(path)
         else:
             show_error_to_user("It looks like the selected format is no" \
-                               " longer available for some reason; it could" \
+                               " longer available for some reason: it could" \
                                " have been deleted or moved.")
             index = self.drop_down.findText(self.drop_down.currentText())
-            self.drop_down
             self.drop_down.removeItem(index)
             self.load_format()
             return
 
+        # all of the loaded format are added to the alteration tab
         for h in saved["header"]:
             current = self.add_new_column_box()
             current.setText(h)
@@ -553,46 +599,77 @@ class TabChunk(QWidget):
 
 
     def save_format(self):
+        """
+        Called when the 'Save formatting' button is clicked. This will
+        gather all of the user-inputted data from the alteration tab and
+        then use a dialog box to get the saved format name. Then
+        output_format.py is used to save the format as a txt file
+        """
+
+        # containers for user-inputs
         header = []
         prompts = []
         sites = []
 
+        # getting Excel file columns
         for i in range(self.column_section.count()):
             curr = self.column_section.itemAt(i).widget()
             if isinstance(curr, QLineEdit) and curr.text() != "":
                 header.append(curr.text())
 
+        # if there are no headers, there can be no output. The user is
+        #  alerted and this is halted
         if len(header) == 0:
             show_error_to_user("There are no output columns set")
             return
         
+        # getting the prompts
         for i in range(self.prompt_section.count()):
             curr = self.prompt_section.itemAt(i).widget()
             if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
                 prompts.append(curr.toPlainText())
 
+        # if there are no prompts, they are generated
         if len(prompts) == 0:
             prompts = output_format.build_prompts(header)
 
+        # getting the sites
         for i in range(self.site_section.count()):
             curr = self.site_section.itemAt(i).widget()
             if isinstance(curr, QLineEdit) and curr.text() != "":
                 sites.append(curr.text())
 
+        # using a dialog box to get the name of the format from the user
         name, ok = QInputDialog().getText(self, "Format name", "Enter a name" \
                                           " for the new format")
+        
+        # if they specify a name and press ok on the dialog, then it will be
+        #  saved
         if name and ok:
             to_save = {"header": header,
                        "prompts": prompts,
                        "sites": sites,
                        "name": name}
-            output_format.save_format(to_save)
+            try:
+                output_format.save_format(to_save)
+            except PermissionError:
+                show_error_to_user("The format was not able to be saved," \
+                                   " this is likely because a file with the" \
+                                   " same name that you are trying to save" \
+                                   " is open somewhere.")
             self.update_output_format_names()
+
+            # setting the view to be the just-saved format
+            index = self.drop_down.findText(to_save['name'])
+            self.drop_down.setCurrentIndex(index)
         else:
             return
 
 
     def generate_prompts(self):
+        """
+        
+        """
         columns = []
         for i in range(self.column_section.count()):
             curr = self.column_section.itemAt(i).widget()
