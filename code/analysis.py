@@ -45,16 +45,11 @@ def get_webtext(link, log):
         return ""
 
 ##### MAKE SURE TO CHECK FOR OPENAI ERRORS, SEE https://github.com/openai/openai-python
-def generate_response(client, prompt_list, webtext, person, log):
+def generate_response(client, prompt_list, webtext, person, log, output):
     """
     Gets a response item from an openai client based off of text from some website
     and a given prompt. If the response-getting fails, bad_output() is returned.
     """
-
-    #output = {"Name": researcher['Name'],
-    #          "Institution": researcher['Institution'],
-    #          "Domain": researcher['Domain']}
-    #output = {h : person[h.lower()] for h in person['header']}
 
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
@@ -71,21 +66,21 @@ def generate_response(client, prompt_list, webtext, person, log):
             # openai will return a dictionary if the response fails on their
             #   end for some reason.
             if isinstance(response, dict):
-                output = output | bad_output(str(response))
-                log.emit("GPT failed to properly analyze the current webtext." \
-                         " Here is openai's reasoning:<br>" + str(response) + \
-                         "<br><br>.")
+                log.emit("<br><br>GPT failed to properly analyze the current"\
+                         " webtext. Here is OpenAI's reasoning:<br>" \
+                         + str(response) + "<br><br>.")
             # else, if the response is good, return the text gpt generated
             #   as a dictionary (additional checks are preformed
             #   by this function).
             else:
                 as_dict = conv_to_dict(response.choices[0].message.content,
                                        person)
-                output = output | as_dict
+                output = as_dict
         except Exception as e:
-            log.emit("GPT failed to generate output for some reason, here is" \
-                     " the exception.<br>" + str(e) + "<br><br>")
-            output = output | bad_output(e)
+            log.emit("<br><br>GPT failed to properly analyze the current" \
+                     " webtext. Here is OpenAI's reasoning:<br>" + str(e) + \
+                     "<br><br>.")
+            output = bad_output(e)
 
     return output
 
@@ -114,7 +109,7 @@ def conv_to_dict(json_string, researcher):
         as_dict = json.loads(json_string)
         return as_dict
     except:
-        print("original transform to dict failed")
+        ######################
 
     # If the output fails for this basic check, the first assumption is that
     # the output may be in code format, ie 
@@ -168,7 +163,6 @@ def get_email(webtext, link):
                   if txt.string is not None]
     to_analyze = " ".join(to_analyze)
     matches = re.findall(r'[\w+.\d-]*@[\w+.-]*', to_analyze)
-    print(matches)
     return matches
 
 
@@ -188,7 +182,7 @@ def analyze(person, client, prompts, need_email, log):
             all_output.append({"email": get_email(webtext, link)})
         if not skip_gpt:
             all_output.append(generate_response(client, prompts, webtext,
-                                                person, log))
+                                                person, log, all_output))
 
     output = combine_dicts(all_output)
     return output

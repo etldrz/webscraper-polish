@@ -52,7 +52,7 @@ def build_output_file(file_path, header, log):
         return False
 
 
-def read_csv(file_path, table):
+def read_csv(file_path, table, log):
     """
     Reads the csv at file_path and loads each researcher as a dict into the
     list to_search.
@@ -79,8 +79,15 @@ def read_csv(file_path, table):
             to_search.append(person_data)
             # the for_table string is built in this way to make parsing done
             #  for the table more easy.
-            for_table += person_data['name'] + "," \
-                + person_data['institution'] + "*"
+            try:
+                for_table += person_data['name'] + "," \
+                    + person_data['institution'] + "*"
+            except KeyError:
+                log.emit("<br><br> It looks like you did not include the" \
+                         " name and/or the institution in the input csv.<br> " \
+                         " Scraping is not possible without these, halting the" \
+                         " process.")
+                return False
 
     table.emit(for_table)
     return to_search
@@ -277,8 +284,11 @@ def main(input_path, output_name, output_format, log, table):
     table: a pyqtSignal(str) object that is used to update the GUI's table.
     """
 
-    # gets a list of dicts built using the input path
-    to_search = read_csv(input_path, table)
+    # gets a list of dicts built using the input path. If name/institution is
+    #  not included in the input file, then scraping will be halted
+    to_search = read_csv(input_path, table, log)
+    if not to_search:
+        return False
 
     # the below chunk updates the log with initial data: how many individuals,
     #  the output header to be used, the prompts to be used, and the sites
@@ -292,7 +302,7 @@ def main(input_path, output_name, output_format, log, table):
     for i in range(len(output_format["prompts"])):
         log.emit("<br><b>PROMPT " + str(i + 1) + "</b><br>")
         log.emit(output_format["prompts"][i] + "<br>")
-    if len(output_format['sites']) >= 0:
+    if len(output_format['sites']) > 0:
         log.emit("<br><b>ADDITIONAL SEARCH TERMS:</b><br>" + \
                  ", ".join(output_format['sites']) + "<br>")
 

@@ -45,16 +45,16 @@ class Worker(QObject):
     to_table = pyqtSignal(str)
 
 
-    def __init__(self, input_path, output_name, output_format):
+    def __init__(self, input_path, output_name, gotten_format):
         super().__init__()
         self.input_path = input_path
         self.output_name = output_name
-        self.output_format = output_format
+        self.gotten_format = gotten_format
 
 
     def run(self):
         result = main.main(self.input_path, self.output_name,
-                           self.output_format, self.to_log, self.to_table)
+                           self.gotten_format, self.to_log, self.to_table)
         # result will return nothing if main exits normally. False otherwise
         if result is None:
             self.finished.emit()
@@ -79,8 +79,6 @@ class TopChunk(QWidget):
      process: determines the output file name, and uses the Worker class to
       run main.main(). Displays dialog boxes at the end of running, based on
       whether or not the process closed with errors.
-     load_format: retrieves the data from the 'Alter output' tab in the GUI and
-      returns it as a dict
      __init__: calls init_top_chunk and sets tab_chunk  to self
     """
 
@@ -134,7 +132,7 @@ class TopChunk(QWidget):
         )
 
         # sets the text of the input file with the choice
-        self.input_filepath.insert(str(response[0]))
+        self.input_filepath.setText(str(response[0]))
 
 
     def process(self):
@@ -164,15 +162,35 @@ class TopChunk(QWidget):
             output_name = os.path.splitext(file_name)[0] + "_output"
         output_name += ".xlsx"
 
-        # gets all the necessary data from the 'Alter output' tab.
-        output_format = self.load_format()
+        # a check to see if the drop down is set to default or not
+        drop_down_default = self.tab_chunk.drop_down.currentText() == \
+            self.tab_chunk.base_drop_down_text
+        if drop_down_default:
+            # this option will load up the scientometrics option, which is
+            #  default
+            gotten_format = output_format.read_saved("base")
+        else:
+            # gets all the necessary data from the 'Alter output' tab.
+            gotten_format = self.tab_chunk.get_format()
+
+
+        if all([h == "" for h in gotten_format['header']]):
+            show_error_to_user("There must be output columns set in order" \
+                               " there to be any output; stopping scrapping.")
+            return
+
+        # if no prompts are set, then some will be built
+        if all([prompt == "" for prompt in gotten_format['prompts']]):
+            gotten_format['prompts'] = output_format.build_prompts(
+                gotten_format['header']
+            )
 
         # clears the log
         self.tab_chunk.log.setText("")
 
         # creates the thread and Worker to be used for this process instance
         self.thread = QThread()
-        self.worker = Worker(path, output_name, output_format)
+        self.worker = Worker(path, output_name, gotten_format)
         self.worker.moveToThread(self.thread)
         
         # hooks up important events to the starting and ending of the thread.
@@ -211,56 +229,6 @@ class TopChunk(QWidget):
         self.worker.encountered_error.connect(error_dialog.exec)
 
 
-    def load_format(self):
-        """
-        Used to get pertinent data from the 'Alter output' tab. Returns as a
-        dict
-        """
-
-        # each of these three is a widget containing different sections of the
-        #  tab
-        column_section = self.tab_chunk.column_section
-        prompt_section = self.tab_chunk.prompt_section
-        site_section = self.tab_chunk.site_section
-
-        # for each section, the inputted details are gotten and put into this
-        #  dict. Note that if a saved format is loaded, then the data of 'Alter
-        #  output' will be filled
-        formatting = {'header': [],
-                     'prompts': [],
-                     'sites': []}
-
-        # for each in the number of widgets in this section, get the text if
-        #  the widget is a QLineEdit object
-        for i in range(column_section.count()):
-            curr = column_section.itemAt(i).widget()
-            if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting['header'].append(curr.text())
-
-        #if len(formatting['header']) == 0:
-        #    chosen_format = self.tab_chunk.drop_down.currentText()
-        #    if chosen_format == self.tab_chunk.base_drop_down_text:
-        #        chosen_format = "base"
-        #    return output_format.read_saved(chosen_format)
-
-        # same as above, except QPlainTextEdit instead of QLineEdit
-        for i in range(prompt_section.count()):
-            curr = prompt_section.itemAt(i).widget()
-            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
-                formatting["prompts"].append(curr.toPlainText())
-
-        #if len(formatting["prompts"]) == 0:
-        #    formatting["prompts"] = output_format.build_prompts(
-        #        formatting["header"])
-
-        for i in range(site_section.count()):
-            curr = site_section.itemAt(i).widget()
-            if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting["sites"].append(curr.text())
-
-        return formatting
-
-
 class TabChunk(QWidget):
     """
     Deals with the tab chunk of the GUI.
@@ -291,6 +259,8 @@ class TabChunk(QWidget):
      load_format: triggered when the drop down menu has a new option selected.
       it will take the user's choice, find the corresponding txt file, and
       load in the format into the alteration tab.
+     get_format: gets all the headers, prompts, and sites and returns them
+      as a dict
      save_format: saves the current format using the selected name (chosen in
       a dialog box) in a text file in ./saved_output_formats/
      generate_prompts: this will automatically add prompts (overwritting any
@@ -564,9 +534,7 @@ class TabChunk(QWidget):
         # gets the current text and gets it's corresponding path, which is
         #  saved in the dict saved_output_format_names
         current_text = self.drop_down.currentText()
-        if current_text == "":
-            return
-        path = self.saved_output_format_names[self.drop_down.currentText()]
+        path = self.saved_output_format_names[current_text]
 
         # if the path exists then the saved format is loaded in as a dict.
         #  'header': output headers
@@ -596,6 +564,47 @@ class TabChunk(QWidget):
         for s in saved["sites"]:
             current = self.add_new_site_box()
             current.setText(s)
+
+
+    def get_format(self):
+        """
+        Used to get pertinent data from the alteration tab. Returns as a
+        dict
+        """
+
+        # each of these three is a widget containing different sections of the
+        #  tab
+        column_section = self.column_section
+        prompt_section = self.prompt_section
+        site_section = self.site_section
+
+        # for each section, the inputted details are gotten and put into this
+        #  dict. Note that if a saved format is loaded, then the data of 'Alter
+        #  output' will be filled
+        formatting = {'header': [],
+                     'prompts': [],
+                     'sites': []}
+
+        # for each in the number of widgets in this section, get the text if
+        #  the widget is a QLineEdit object
+        for i in range(column_section.count()):
+            curr = column_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting['header'].append(curr.text())
+
+        # same as above, except QPlainTextEdit instead of QLineEdit
+        for i in range(prompt_section.count()):
+            curr = prompt_section.itemAt(i).widget()
+            if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
+                formatting["prompts"].append(curr.toPlainText())
+
+
+        for i in range(site_section.count()):
+            curr = site_section.itemAt(i).widget()
+            if isinstance(curr, QLineEdit) and curr.text() != "":
+                formatting["sites"].append(curr.text())
+
+        return formatting
 
 
     def save_format(self):
@@ -630,7 +639,7 @@ class TabChunk(QWidget):
                 prompts.append(curr.toPlainText())
 
         # if there are no prompts, they are generated
-        if len(prompts) == 0:
+        if all([p == "" for p in prompts]):
             prompts = output_format.build_prompts(header)
 
         # getting the sites
@@ -668,18 +677,17 @@ class TabChunk(QWidget):
 
     def generate_prompts(self):
         """
-        
+        This is used to build and set prompts for openai; it is called when
+        there are no prompts set by the user or else the generate prompts
+        button is pushed.
         """
-        columns = []
-        for i in range(self.column_section.count()):
-            curr = self.column_section.itemAt(i).widget()
-            if isinstance(curr, QLineEdit) and curr.text() != "":
-                columns.append(curr.text())           
 
-        if len(columns) == 0:
+        gotten_format = self.get_format()
+        
+        if all([h == "" for h in gotten_format['header']]):
             return
 
-        prompts = output_format.build_prompts(columns)
+        prompts = output_format.build_prompts(gotten_format['header'])
         self.clear_layout(self.prompt_section)
         for p in prompts:
             current = self.add_new_prompt_box()
