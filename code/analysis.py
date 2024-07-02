@@ -45,12 +45,13 @@ def get_webtext(link, log):
         return ""
 
 ##### MAKE SURE TO CHECK FOR OPENAI ERRORS, SEE https://github.com/openai/openai-python
-def generate_response(client, prompt_list, webtext, person, log, output):
+def generate_response(client, prompt_list, webtext, person, log):
     """
     Gets a response item from an openai client based off of text from some website
     and a given prompt. If the response-getting fails, bad_output() is returned.
     """
 
+    output = {}
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
         prompt = prompt.replace("INSTITUTION_NAME", person['institution'])
@@ -66,9 +67,9 @@ def generate_response(client, prompt_list, webtext, person, log, output):
             # openai will return a dictionary if the response fails on their
             #   end for some reason.
             if isinstance(response, dict):
-                log.emit("<br><br>GPT failed to properly analyze the current"\
+                log.emit("<br><br><br>GPT failed to properly analyze the current"\
                          " webtext. Here is OpenAI's reasoning:<br>" \
-                         + str(response) + "<br><br>.")
+                         + str(response))
             # else, if the response is good, return the text gpt generated
             #   as a dictionary (additional checks are preformed
             #   by this function).
@@ -77,9 +78,8 @@ def generate_response(client, prompt_list, webtext, person, log, output):
                                        person)
                 output = as_dict
         except Exception as e:
-            log.emit("<br><br>GPT failed to properly analyze the current" \
-                     " webtext. Here is OpenAI's reasoning:<br>" + str(e) + \
-                     "<br><br>.")
+            log.emit("<br><br><br>GPT failed to properly analyze the current" \
+                     " webtext. Here is OpenAI's reasoning:<br>" + str(e)) 
             output = bad_output(e)
 
     return output
@@ -109,6 +109,7 @@ def conv_to_dict(json_string, researcher):
         as_dict = json.loads(json_string)
         return as_dict
     except:
+        print("asdfadsf")
         ######################
 
     # If the output fails for this basic check, the first assumption is that
@@ -155,7 +156,11 @@ def combine_dicts(to_combine):
 
 def get_email(webtext, link):
     agent = random.choice(user_agents)
-    req = requests.get(link, agent)
+    try:
+        req = requests.get(link, agent)
+    except:
+        print("THERE WAS AN ERROR IN GET_EMAIL")
+        return []
     bs = BeautifulSoup(req.content, 'html.parser')
 
     anchors = bs.select("a")
@@ -182,7 +187,7 @@ def analyze(person, client, prompts, need_email, log):
             all_output.append({"email": get_email(webtext, link)})
         if not skip_gpt:
             all_output.append(generate_response(client, prompts, webtext,
-                                                person, log, all_output))
+                                                person, log))
 
     output = combine_dicts(all_output)
     return output
