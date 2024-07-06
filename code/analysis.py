@@ -179,7 +179,7 @@ def analyze(person, client, prompts, need_email, log):
     by bad_output().
     """
     skip_gpt = prompts[0] == "NONE"
-    all_output = [{h : person[h.lower()]} for h in person['header']]
+    all_output = [{h : person[h.lower()]} for h in person['headers']]
 
     for link in person['links used']:
         webtext = get_webtext(link, log)

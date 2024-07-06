@@ -1,4 +1,4 @@
-HEADER = "#HEADER"
+HEADER = "#HEADERS"
 PROMPTS = "#PROMPTS"
 USEFUL_SEARCH_TERMS = "#USEFUL_SEARCH_TERMS"
 
@@ -79,29 +79,29 @@ def read_saved(saved_path):
                 prompts_to_use = [prompt.split("\n")[0] for prompt in lines]
             line = f.readline()
 
-    saved_format = {"header":  headers_to_use,
-                    "prompts": prompts_to_use,
-                    "sites": useful_search_terms}
+    saved_format = {'headers':  headers_to_use,
+                    'prompts': prompts_to_use,
+                    'sites': useful_search_terms}
     return saved_format
 
 
 def save_format(to_save):
     """
     Where to_save is a dict containing
-    'header': output headers
+    'headers': output headers
     'sites': additional sites, if any
     'prompts': prompts to use
     'name': the name of the saved format
     """
-    to_write = SAVED_FOLDER + "/" + to_save["name"] + ".txt"
+    to_write = SAVED_FOLDER + "/" + to_save['name'] + ".txt"
 
     with open(to_write, 'w') as f:
         f.write(HEADER + "\n")
-        f.write(",".join(to_save["header"]) + "\n")
+        f.write(",".join(to_save['headers']) + "\n")
         f.write(USEFUL_SEARCH_TERMS + "\n")
-        f.write(",".join(to_save["sites"]) + "\n")
+        f.write(",".join(to_save['sites']) + "\n")
         f.write(PROMPTS + "\n")
-        f.write("\n".join(to_save["prompts"]))
+        f.write("\n".join(to_save['prompts']))
 
 
 # EXAMPLE_SAVED_FORMAT.txt

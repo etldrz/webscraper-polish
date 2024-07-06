@@ -16,7 +16,7 @@ bad_link_prefixes = ["/search", "q=", "/?",
 bad_locations = ["facebook", "instagram",
                  "linkedin", "twitter", "ratemyprofessors",
                  "coursicle", "youtube", "amazon",
-                 ".doc", ".pdf", "wiki", "imgres", "fencingtracker"]
+                 ".doc", ".pdf", "wiki", "imgres"]
 
 
 def build_output_file(file_path, header, log):
@@ -58,7 +58,7 @@ def read_csv(file_path, table, log):
     file_path: the path of the csv that was inputted by the user.
     table: a pyqtSignal(str) that updates the table tab
     return: a list of dicts, where each dict contains
-     'header': a list containing all strings in the header
+     'headers': a list containing all strings in the header
      'name': the person's name
      'institution': the person's institution
      plus any other column in the input csv
@@ -73,7 +73,7 @@ def read_csv(file_path, table, log):
         for person in reader:
             person_data = {header[i].lower() : person[i] \
                               for i in range(0,len(header))}
-            person_data['header'] = header
+            person_data['headers'] = header
             to_search.append(person_data)
             # the for_table string is built in this way to make parsing done
             #  for the table more easy.
@@ -209,7 +209,7 @@ def write_to_excel(output_path, person, log):
         
     # if there was no relevent data found for some person, then 'NONE'
     #  is written into the Excel cell.
-    to_write = ["NONE"]*len(header)
+    to_write = [""]*len(header)
 
     # outer loop cycles through the keys in the person's output. keys are
     #  checked to see if they exist as headers in the output and if they are
@@ -308,10 +308,10 @@ def main(input_path, output_name, output_format, log, table):
         sing_or_plur = " individual"
     log.emit("<h2>Starting scraping on " + str(len(to_search)) + \
              sing_or_plur + ".</h2><br><br><b>OUTPUT HEADER:</b><br>" + \
-             ", ".join(output_format["header"]) + "<br>")
-    for i in range(len(output_format["prompts"])):
+             ", ".join(output_format['headers']) + "<br>")
+    for i in range(len(output_format['prompts'])):
         log.emit("<br><b>PROMPT " + str(i + 1) + "</b><br>")
-        log.emit(output_format["prompts"][i] + "<br>")
+        log.emit(output_format['prompts'][i] + "<br>")
     if len(output_format['sites']) > 0:
         log.emit("<br><b>ADDITIONAL SEARCH TERMS:</b><br>" + \
                  ", ".join(output_format['sites']) + "<br>")
@@ -319,7 +319,7 @@ def main(input_path, output_name, output_format, log, table):
     # attempts to build the Excel output file. build_good is a bool to show if
     #  the sheet was accessed okay: True if there where no issues and False if
     #  so. If False, then scraping will stop and the user will be notified
-    build_good = build_output_file(output_name, output_format["header"], log)
+    build_good = build_output_file(output_name, output_format['headers'], log)
     if not build_good:
         return False
 
@@ -330,10 +330,10 @@ def main(input_path, output_name, output_format, log, table):
     # if the user wants emails to be found, then regex is used instead of
     #  openai. This bool ensures that happens
     get_email = False
-    if "email" in output_format["header"] \
-       or "Email" in output_format["header"] \
-       or "emails" in output_format["header"] \
-       or "Emails" in output_format["header"]:
+    if "email" in output_format['headers'] \
+       or "Email" in output_format['headers'] \
+       or "emails" in output_format['headers'] \
+       or "Emails" in output_format['headers']:
         log.emit("Regex will be used to scrape emails.<br>")
         get_email = True
 

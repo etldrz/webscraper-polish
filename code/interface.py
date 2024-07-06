@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem
     )
 from PyQt6.QtGui import QPalette, QColor, QIcon, QPixmap
-from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QUrl
 
 
 class Worker(QObject):
@@ -162,27 +162,31 @@ class TopChunk(QWidget):
             output_name = os.path.splitext(file_name)[0] + "_output"
         output_name += ".xlsx"
 
+        # gets all input data from 'Alter output' tab
+        gotten_format = self.tab_chunk.get_format()
+
+        # check to see if all are blank
+        all_blank = all([h == "" for h in gotten_format['headers']]) \
+            and all([p == "" for p in gotten_format['prompts']]) \
+            and all([s == "" for s in gotten_format['sites']])
+
         # a check to see if the drop down is set to default or not
         drop_down_default = self.tab_chunk.drop_down.currentText() == \
             self.tab_chunk.base_drop_down_text
-        if drop_down_default:
+        if drop_down_default and all_blank:
             # this option will load up the scientometrics option, which is
             #  default
             gotten_format = output_format.read_saved("base")
-        else:
-            # gets all the necessary data from the 'Alter output' tab.
-            gotten_format = self.tab_chunk.get_format()
 
-
-        if all([h == "" for h in gotten_format['header']]):
-            show_error_to_user("There must be output columns set in order" \
+        if all([h == "" for h in gotten_format['headers']]):
+            show_error_to_user("There must be output columns set in order for" \
                                " there to be any output; stopping scrapping.")
             return
 
         # if no prompts are set, then some will be built
         if all([prompt == "" for prompt in gotten_format['prompts']]):
             gotten_format['prompts'] = output_format.build_prompts(
-                gotten_format['header']
+                gotten_format['headers']
             )
 
         # clears the log
@@ -430,8 +434,12 @@ class TabChunk(QWidget):
         saved_format_section.addWidget(build_prompts)
         self.header_section.addLayout(saved_format_section)
 
-        information = QLabel("This row is reserved for information, as well as" \
-                             " access to the pdf (or whatever)")
+        pdf_location = r"./docs/user_info.pdf"
+        url = bytearray(QUrl.fromLocalFile(pdf_location).toEncoded()).decode()
+        pdf_link = "<a href={}>here</a>".format(url)
+        information = QLabel("Click " + pdf_link + " for additional" \
+                             " information on effectively opperating the tool.")
+        information.setOpenExternalLinks(True)
         self.header_section.addWidget(information)
 
         self.alter_layout.addLayout(self.header_section)
@@ -537,7 +545,7 @@ class TabChunk(QWidget):
         path = self.saved_output_format_names[current_text]
 
         # if the path exists then the saved format is loaded in as a dict.
-        #  'header': output headers
+        #  'headers': output headers
         #  'sites': additional sites, if any
         #  'prompts': prompts to use
         #  'name': the name of the saved format
@@ -555,13 +563,13 @@ class TabChunk(QWidget):
             return
 
         # all of the loaded format are added to the alteration tab
-        for h in saved["header"]:
+        for h in saved['headers']:
             current = self.add_new_column_box()
             current.setText(h)
-        for p in saved["prompts"]:
+        for p in saved['prompts']:
             current = self.add_new_prompt_box()
             current.setPlainText(p)
-        for s in saved["sites"]:
+        for s in saved['sites']:
             current = self.add_new_site_box()
             current.setText(s)
 
@@ -581,7 +589,7 @@ class TabChunk(QWidget):
         # for each section, the inputted details are gotten and put into this
         #  dict. Note that if a saved format is loaded, then the data of 'Alter
         #  output' will be filled
-        formatting = {'header': [],
+        formatting = {'headers': [],
                      'prompts': [],
                      'sites': []}
 
@@ -590,19 +598,19 @@ class TabChunk(QWidget):
         for i in range(column_section.count()):
             curr = column_section.itemAt(i).widget()
             if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting['header'].append(curr.text())
+                formatting['headers'].append(curr.text())
 
         # same as above, except QPlainTextEdit instead of QLineEdit
         for i in range(prompt_section.count()):
             curr = prompt_section.itemAt(i).widget()
             if isinstance(curr, QPlainTextEdit) and curr.toPlainText() != "":
-                formatting["prompts"].append(curr.toPlainText())
+                formatting['prompts'].append(curr.toPlainText())
 
 
         for i in range(site_section.count()):
             curr = site_section.itemAt(i).widget()
             if isinstance(curr, QLineEdit) and curr.text() != "":
-                formatting["sites"].append(curr.text())
+                formatting['sites'].append(curr.text())
 
         return formatting
 
@@ -655,10 +663,10 @@ class TabChunk(QWidget):
         # if they specify a name and press ok on the dialog, then it will be
         #  saved
         if name and ok:
-            to_save = {"header": header,
-                       "prompts": prompts,
-                       "sites": sites,
-                       "name": name}
+            to_save = {'headers': header,
+                       'prompts': prompts,
+                       'sites': sites,
+                       'name': name}
             try:
                 output_format.save_format(to_save)
             except PermissionError:
@@ -684,10 +692,10 @@ class TabChunk(QWidget):
 
         gotten_format = self.get_format()
         
-        if all([h == "" for h in gotten_format['header']]):
+        if all([h == "" for h in gotten_format['headers']]):
             return
 
-        prompts = output_format.build_prompts(gotten_format['header'])
+        prompts = output_format.build_prompts(gotten_format['headers'])
         self.clear_layout(self.prompt_section)
         for p in prompts:
             current = self.add_new_prompt_box()
