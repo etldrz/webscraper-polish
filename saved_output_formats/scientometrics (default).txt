@@ -1,5 +1,5 @@
 #HEADERS
-Name,Last Name,Institution,Title,Domain,Gender,Topic,Research focus,Expertise,Research fields,Otherk key notes,Relevant links,Email,Website
+Name,Last Name,Institution,Title,Domain,Gender,Topic,Research focus,Expertise,Research fields,Other key notes,Relevant links,Email,Website
 #USEFUL_SEARCH_TERMS
 researchgate,ieee
 #PROMPTS

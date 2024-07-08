@@ -271,8 +271,10 @@ class TabChunk(QWidget):
       already there) to the prompt section of the alteration tab. see
       output_format.py for how these prompts are made.
      clear_layout: resets the alteration layout to base
-     update_output_format_names: sets the values of the dropdown box in the
-      alteration tab with the current saved format names
+     update_output_format_names: sets the values of the dict
+      saved_output_format_names with the current saved format names
+     update_drop_down: wipes the current drop down and sets it to
+      saved_output_format_names
      __init__: sets the parent widget, creates an empty dict to contain output
       formats and calls init_tabs
     """
@@ -422,6 +424,7 @@ class TabChunk(QWidget):
         # building the header_section
         self.drop_down = QComboBox()
         self.update_output_format_names()
+        self.update_drop_down()
         self.drop_down.currentTextChanged.connect(self.load_format)
         saved_format_section.addWidget(self.drop_down)
         build_prompts = QPushButton("Generate prompts")
@@ -533,15 +536,15 @@ class TabChunk(QWidget):
         self.clear_layout(self.prompt_section)
         self.clear_layout(self.site_section)
 
+        current_text = self.drop_down.currentText()
+
         # if the base option is selected on the drop down, then just build
         #  it basic and leave it 
-        if self.drop_down.currentText() == self.base_drop_down_text:
+        if current_text == self.base_drop_down_text:
             self.base_alter_view()
             return
 
-        # gets the current text and gets it's corresponding path, which is
-        #  saved in the dict saved_output_format_names
-        current_text = self.drop_down.currentText()
+        # gets the current text's corresponding path
         path = self.saved_output_format_names[current_text]
 
         # if the path exists then the saved format is loaded in as a dict.
@@ -674,9 +677,14 @@ class TabChunk(QWidget):
                                    " this is likely because a file with the" \
                                    " same name that you are trying to save" \
                                    " is open somewhere.")
-            self.update_output_format_names()
+            
+            already_present = self.drop_down.findText(to_save['name'])
+            if already_present > 0:
+                self.drop_down.removeItem(already_present)
 
             # setting the view to be the just-saved format
+            self.update_output_format_names()
+            self.drop_down.addItems([to_save['name']])
             index = self.drop_down.findText(to_save['name'])
             self.drop_down.setCurrentIndex(index)
         else:
@@ -718,6 +726,8 @@ class TabChunk(QWidget):
                                           + name \
                                           for name in viable_paths}
 
+
+    def update_drop_down(self):
         self.drop_down.clear()
         self.drop_down.addItems([self.base_drop_down_text] + \
                            list(self.saved_output_format_names.keys()))

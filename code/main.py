@@ -71,22 +71,28 @@ def read_csv(file_path, table, log):
         header = next(reader)
 
         for person in reader:
-            person_data = {header[i].lower() : person[i] \
-                              for i in range(0,len(header))}
-            person_data['headers'] = header
+            person_data = {'data_from_csv': {header[i].lower() : person[i] \
+                              for i in range(0,len(header))}}
+
+
             to_search.append(person_data)
-            # the for_table string is built in this way to make parsing done
-            #  for the table more easy.
+
+            # there must be categories for name and institution in the input
+            #  csv, otherwise the gui will show an error
             try:
-                for_table += person_data['name'] + "," \
-                    + person_data['institution'] + "*"
+                person_data['name'] = person_data['data_from_csv']['name']
+                person_data['institution'] = person_data['data_from_csv']['institution']
             except KeyError:
                 log.emit("<br><br> It looks like you did not include the" \
                          " name and/or the institution in the input csv.<br> " \
                          " Scraping is not possible without these, halting the" \
                          " process.")
                 return False
-
+    
+    # the for_table string is built in this way to make parsing done
+    #  for the table more easy.
+    for_table +=  person_data['name']+ "," \
+        + person_data['institution'] + "*"
     table.emit(for_table)
     return to_search
 
@@ -244,14 +250,9 @@ def write_to_excel(output_path, person, log):
             if h.internal_value.lower() == key.lower():
                 data = person['output'][key]
 
-                if unique == "":
-                    unique = "NONE"
                 # minus one because the Excel row number is included in the
                 #  header cell list
                 to_write[col - 1] = unique 
-            # 'topic' is a reserved header name
-            elif h.internal_value.lower() == "topic":
-                to_write[col - 1] = ""
     
     # appending the updated list to the worksheet object, and then using
     #  a try-block to catch any writing errors
@@ -371,7 +372,8 @@ def main(input_path, output_name, output_format, log, table):
 
         # this gets all relevant found information for one person
         person['output'] = analysis.analyze(
-            person, client, output_format['prompts'], get_email, log
+            person, client, output_format['prompts'], output_format['headers'],
+            get_email, log
         )
 
         # writes the found information to excel. the bool of build_good is

@@ -55,6 +55,7 @@ def generate_response(client, prompt_list, webtext, person, log):
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
         prompt = prompt.replace("INSTITUTION_NAME", person['institution'])
+
         try:
             response = client.chat.completions.create(
                 model = CLIENT_MODEL,
@@ -76,11 +77,11 @@ def generate_response(client, prompt_list, webtext, person, log):
             else:
                 as_dict = conv_to_dict(response.choices[0].message.content,
                                        person)
-                output = as_dict
+                output = output | as_dict
         except Exception as e:
             log.emit("<br><br><br>GPT failed to properly analyze the current" \
                      " webtext. Here is OpenAI's reasoning:<br>" + str(e)) 
-            output = bad_output(e)
+            output = output | bad_output(e)
 
     return output
 
@@ -109,8 +110,9 @@ def conv_to_dict(json_string, researcher):
         as_dict = json.loads(json_string)
         return as_dict
     except:
-        print("asdfadsf")
+        print("original conversion failed")
         ######################
+
 
     # If the output fails for this basic check, the first assumption is that
     # the output may be in code format, ie 
@@ -131,25 +133,63 @@ def conv_to_dict(json_string, researcher):
         return bad_output(e) 
 
 
-def combine_dicts(to_combine):
+def combine_dicts(to_combine, initial_data, user_specified_headers):
+    ##########
+    # remove all keys and their items from to_combine that aren't in user_specified_headers
+    #  clean the data
+    #  put initial data in, and make sure that only those keys are there
     # Replaces any instance of "NONE" with a blank string, for easy combining
-    cleaned = [{key: "" if value == "NONE" else value
-                for key, value in current.items()}
-               for current in to_combine]
 
-    # Combines all the values of the same keys together
+    user_specified_headers = list(map(
+        lambda x : x.lower(), user_specified_headers
+    ))
+
+    if "other key notes" in user_specified_headers:
+        user_specified_headers += ["awards recieved",
+                                   "patents under their name"]
+    
+    print(to_combine)
     total = {}
-    for clean in cleaned:
-        for key, value in clean.items():
-            if key in total:
-                # To prevent double adding of basic values, like name or
-                #   institution, as well as to prevent blank lines being added
-                if total[key] == value or \
-                   value == "":
+    for ush in user_specified_headers:
+        print(ush)
+        if ush in initial_data:
+            total[ush] = initial_data[ush]
+            continue
+        total[ush] = ""
+
+        for item in to_combine:
+            item = {k.lower(): v for k, v in item.items()}
+            if ush in item:
+                curr = item[ush]
+                print(curr)
+                if len(curr) == 0:
                     continue
-                total[key] += "\n" + str(value)
-            else:
-                total[key] = str(value)
+                elif isinstance(curr, str) and \
+                     (curr == "NONE" or \
+                      curr.lower() in total[ush].lower()):
+                    continue
+                elif isinstance(curr, list):
+                    curr = "\n".join(curr)
+
+                total[ush] += "\n" + curr
+
+    print(total)
+    #cleaned = [{key: "" if value == "NONE" else value
+    #            for key, value in current.items()}
+    #           for current in to_combine]
+
+    ## Combines all the values of the same keys together
+    #for clean in cleaned:
+    #    for key, value in clean.items():
+    #        if key in total:
+    #            # To prevent double adding of basic values, like name or
+    #            #   institution, as well as to prevent blank lines being added
+    #            if total[key] == value or \
+    #               value == "":
+    #                continue
+    #            total[key] += "\n" + str(value)
+    #        else:
+    #            total[key] = str(value)
 
     return total
 
@@ -171,7 +211,7 @@ def get_email(webtext, link):
     return matches
 
 
-def analyze(person, client, prompts, need_email, log):
+def analyze(person, client, prompts, headers_from_user, need_email, log):
     """
     When given a researcher dict and an instance of an openai client, this
     will return a fully completed dict with all of the needed output. If
@@ -179,7 +219,7 @@ def analyze(person, client, prompts, need_email, log):
     by bad_output().
     """
     skip_gpt = prompts[0] == "NONE"
-    all_output = [{h : person[h.lower()]} for h in person['headers']]
+    all_output = []
 
     for link in person['links used']:
         webtext = get_webtext(link, log)
@@ -189,5 +229,7 @@ def analyze(person, client, prompts, need_email, log):
             all_output.append(generate_response(client, prompts, webtext,
                                                 person, log))
 
-    output = combine_dicts(all_output)
+    output = combine_dicts(
+        all_output, person['data_from_csv'], headers_from_user
+    )
     return output
