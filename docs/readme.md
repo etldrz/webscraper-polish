@@ -12,4 +12,4 @@ The tool requires that input data be formatted in the following manner (as a .cs
 | ---- | ----------- | ------ |
 | Santa Claus | Toy Factory | Industry |
 	
-Output will be in the form of an Excel file (.xlsx) containing all output that the tool was able to get. There is an information pdf in the docs file, also accessible through the GUI.
+Output will be in the form of an Excel file (.xlsx) containing all output that the tool was able to get. There is an information pdf in the docs folder, also accessible through the GUI.
