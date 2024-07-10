@@ -1,5 +1,7 @@
 from user_agents import user_agents
 from openpyxl import Workbook, load_workbook
+from bs4 import BeautifulSoup
+import time
 import json
 import os
 import random
@@ -97,7 +99,7 @@ def read_csv(file_path, table, log):
     return to_search
 
 
-def get_links(person, sites, google_api_key, cse_id, log):
+def get_links(person, sites, agent, log):
     """
     Gets relevant links from the first page of a google search for some person.
 
@@ -120,8 +122,7 @@ def get_links(person, sites, google_api_key, cse_id, log):
     links = []
 
     # google's programmable search is used, to avoid getting locked out
-    search_url = "https://www.googleapis.com/customsearch/v1?key=" \
-        f"{google_api_key}&cx={cse_id}&q={query}"
+    search_url = f"https://www.google.com/search?q={query}"
     # creating a list of search terms to use
     all_search = [search_url + " " + site for site in sites]
     all_search = [search_url] + all_search
@@ -131,25 +132,22 @@ def get_links(person, sites, google_api_key, cse_id, log):
     to_log = [f"<a href=\"{site}\">{site}</a>" for site in all_search]
     log.emit("<br>".join(to_log) + "<br><br>")
 
-    # gets the google search page, in bytes for each in all_search
-    raw_links = []
+    # gets all the search content, in bytes
+    content = []
     for search in all_search:
-        response = requests.get(search)
-        data = json.loads(response.text)
-
-        if 'error' in data:
-            log.emit("<br><br>There was an error while using Google's Programmable" \
-                     f" Search:<br>{data['error']['message']}")
-            continue
-        elif 'items' not in data:
-            continue
-
-        raw_links += [item['link'] for item in data['items']]
-
-
+        req = requests.get(search, agent)
+        time.sleep(0.5)
+        content.append(req.content)
+        
+    # BeautifulSoup is used to analyze all of the query results at once, and
+    #  pull anchor elements from the html
+    bs = BeautifulSoup(b''.join(content), 'html.parser')
+    raw_links = bs.select("a")
+    
+    raw_links = []
     # filter links that do not contain "google.com" or start with the
     #  prefixes defined in bad_link_prefixes
-    filtered_links = [link for link in raw_links
+    filtered_links = [link for link['href'] in raw_links
                       if not any(link.startswith(prefix)
                                  or link.find('google.com') > 0
                                  for prefix in bad_link_prefixes)]
@@ -170,11 +168,13 @@ def get_links(person, sites, google_api_key, cse_id, log):
     #  if the person's institution is present in the link
     # This logic is heavily dependent on the quality of google's search
     #  algorithm, there are obviously a lot of holes and chances for bad data
-    #  to slip in. However, this system works.
+    #  to slip in
     full_name = person['name'].lower().split(" ")
     first_name = full_name[0]
     last_name = full_name[-1]
     institution = person['institution']
+    # if the users specify researchgate, then a check to see if the person's
+    #  name as well as researchgate is used instead
     if "researchgate" in sites:
         del sites[sites.index("researchgate")]
     links = [link for link in map(lambda x: x.lower(), set(links))
@@ -354,11 +354,8 @@ def main(input_path, output_name, output_format, log, table):
 
         # good links found by get_links are added to each person dict
         #  google's programmable search is used to search google
-        google_api_key = os.getenv("GOOGLE_CUSTOM_SEARCH_API_KEY")
-        # this is the id of the programmable search engine in use
-        cse_id = os.getenv("CSE_ID")
         person['links used'] = get_links(
-            person, output_format['sites'], google_api_key, cse_id, log
+            person, output_format['sites'], agent, log
         )
 
         # the log will update with any good links found, if any
