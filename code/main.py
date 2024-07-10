@@ -1,6 +1,7 @@
 from user_agents import user_agents
 from openpyxl import Workbook, load_workbook
 from bs4 import BeautifulSoup
+import re
 import time
 import json
 import os
