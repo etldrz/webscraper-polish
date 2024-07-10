@@ -44,13 +44,12 @@ def get_webtext(link, log):
         log.emit("<br>The webtext of " + link + " could not be gotten<br><br>")
         return ""
 
-##### MAKE SURE TO CHECK FOR OPENAI ERRORS, SEE https://github.com/openai/openai-python
+
 def generate_response(client, prompt_list, webtext, person, log):
     """
     Gets a response item from an openai client based off of text from some website
     and a given prompt. If the response-getting fails, bad_output() is returned.
     """
-
     output = {}
     for prompt in prompt_list:
         prompt = prompt.replace("PERSON_NAME", person['name'])
@@ -134,26 +133,28 @@ def conv_to_dict(json_string, researcher):
 
 
 def combine_dicts(to_combine, initial_data, user_specified_headers):
-    ##########
-    # remove all keys and their items from to_combine that aren't in user_specified_headers
-    #  clean the data
-    #  put initial data in, and make sure that only those keys are there
-    # Replaces any instance of "NONE" with a blank string, for easy combining
-
+    """
+    This will combine all the dicts into a single format (a string) for each
+    of the requested headers.
+    """
     user_specified_headers = list(map(
         lambda x : x.lower(), user_specified_headers
     ))
 
+    # other key notes is a reserved header that contains award/patent information
     if "other key notes" in user_specified_headers:
         user_specified_headers += ["awards recieved",
                                    "patents under their name"]
     
-    print(to_combine)
     total = {}
     for ush in user_specified_headers:
-        print(ush)
+        # initial_data contains information from the input csv, and that takes
+        #  precedence over anything gotten from gpt
         if ush in initial_data:
             total[ush] = initial_data[ush]
+            continue
+        elif ush == "other key notes":
+            total[ush] = ""
             continue
         total[ush] = ""
 
@@ -161,7 +162,6 @@ def combine_dicts(to_combine, initial_data, user_specified_headers):
             item = {k.lower(): v for k, v in item.items()}
             if ush in item:
                 curr = item[ush]
-                print(curr)
                 if len(curr) == 0:
                     continue
                 elif isinstance(curr, str) and \
@@ -173,40 +173,26 @@ def combine_dicts(to_combine, initial_data, user_specified_headers):
 
                 total[ush] += "\n" + curr
 
-    print(total)
-    #cleaned = [{key: "" if value == "NONE" else value
-    #            for key, value in current.items()}
-    #           for current in to_combine]
-
-    ## Combines all the values of the same keys together
-    #for clean in cleaned:
-    #    for key, value in clean.items():
-    #        if key in total:
-    #            # To prevent double adding of basic values, like name or
-    #            #   institution, as well as to prevent blank lines being added
-    #            if total[key] == value or \
-    #               value == "":
-    #                continue
-    #            total[key] += "\n" + str(value)
-    #        else:
-    #            total[key] = str(value)
-
     return total
 
 
 def get_email(webtext, link):
+    """
+    Regex is used to parse webtext looking for emails, looking through anchor
+    tags. The return is a list of found emails
+    """
     agent = random.choice(user_agents)
     try:
         req = requests.get(link, agent)
     except:
         print("THERE WAS AN ERROR IN GET_EMAIL")
         return []
-    bs = BeautifulSoup(req.content, 'html.parser')
 
     anchors = bs.select("a")
     to_analyze = [txt.string for txt in anchors \
                   if txt.string is not None]
     to_analyze = " ".join(to_analyze)
+
     matches = re.findall(r'[\w+.\d-]*@[\w+.-]*', to_analyze)
     return matches
 

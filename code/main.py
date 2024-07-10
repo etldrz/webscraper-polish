@@ -1,5 +1,6 @@
 from user_agents import user_agents
 from openpyxl import Workbook, load_workbook
+import re
 import json
 import os
 import random
@@ -222,6 +223,26 @@ def write_to_excel(output_path, person, log):
     #  then the value corresponding to that key is saved into the appropriate
     #  index in to_write
     for key in person['output']:
+
+        # formatting data for one of the reserved headers
+        if key == "other key notes":
+            patents = "0"
+            awards = ""
+            if "patents under their name" in person['output']:
+                patents = person['output']['patents under their name']
+                patents = re.split(",|\n", patents)
+                patents.remove("")
+                patents = str(len(patents))
+            if "awards recieved" in person['output']:
+                awards = person['output']['awards recieved']
+                awards = re.split(",|\n", awards)
+                awards.remove("")
+                awards = "\n" + "\n".join(awards)
+
+            full_string = f"Patents found: {patents} \n\n" \
+                f"Awards recieved found: {awards}"
+            person['output'][key] = full_string
+
         # the inner loop cycles through each header object from the Excel sheet,
         #  if a match is found between the strings of key and h.internal_value,
         #  then the output is saved in that header's corresponding index on
@@ -235,6 +256,10 @@ def write_to_excel(output_path, person, log):
             if h.internal_value.lower() == "relevant links":
                 to_write[col - 1] = "\n".join(person['links used'])
                 continue 
+            elif h.internal_value.lower() == "other key notes":
+                # no additional formatting needs to be done
+                to_write[col - 1] = person['output']['other key notes']
+                continue
 
             data = person['output'][key]
             # splitting the data string like this, then removing each first
