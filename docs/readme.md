@@ -1,6 +1,7 @@
 # Basics of getting the tool up and running
 
 1. Clone or download the `main` branch of this repository.
+1. Add an OpenAI API key to an environement file in the root drectory ("OPENAI_API_KEY=...")
 1. Download the requirements (`pip install -r requirements.txt`). It is recommended to do this inside of a [virtual environment](https://www.freecodecamp.org/news/how-to-setup-virtual-environments-in-python/).
 1. Put the API key for OpenAI into an environment file: `./.env` as `OPENAI_API_KEY=...`
 1. The command `python code/interface.py` will initiate the GUI, as well as the rest of the code.
